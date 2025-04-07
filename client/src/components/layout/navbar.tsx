@@ -1,12 +1,22 @@
 import { useState, useEffect } from "react";
 import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
-import { Menu, X } from "lucide-react";
+import { Menu, X, LogOut, User } from "lucide-react";
+import { useAuth } from "@/hooks/use-auth";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 export default function Navbar() {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [location] = useLocation();
+  const { user, logout } = useAuth();
 
   // Handle scroll effect
   useEffect(() => {
@@ -66,9 +76,40 @@ export default function Navbar() {
             >
               Pricing
             </button>
-            <Link href="/dashboard">
-              <Button>Dashboard</Button>
-            </Link>
+            
+            {user ? (
+              <>
+                <Link href="/dashboard">
+                  <Button>Dashboard</Button>
+                </Link>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" size="icon">
+                      <User className="h-5 w-5" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuLabel>Mi cuenta</DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem className="cursor-pointer">
+                      <span className="font-medium">{user.username}</span>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem className="cursor-pointer">
+                      Plan: <span className="font-medium capitalize ml-1">{user.plan}</span>
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem className="text-red-500 cursor-pointer" onClick={logout}>
+                      <LogOut className="mr-2 h-4 w-4" />
+                      <span>Cerrar sesión</span>
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </>
+            ) : (
+              <Link href="/auth">
+                <Button>Iniciar sesión</Button>
+              </Link>
+            )}
           </div>
           <div className="flex md:hidden items-center">
             <button
@@ -108,9 +149,32 @@ export default function Navbar() {
             >
               Pricing
             </button>
-            <Link href="/dashboard" className="block px-3 py-2">
-              <Button className="w-full">Dashboard</Button>
-            </Link>
+            
+            {user ? (
+              <>
+                <Link href="/dashboard" className="block px-3 py-2">
+                  <Button className="w-full">Dashboard</Button>
+                </Link>
+                <div className="px-3 py-2">
+                  <div className="bg-gray-100 p-3 rounded-md">
+                    <p className="font-medium text-gray-700">{user.username}</p>
+                    <p className="text-sm text-gray-500 capitalize">Plan: {user.plan}</p>
+                  </div>
+                  <Button 
+                    variant="destructive" 
+                    className="w-full mt-2" 
+                    onClick={logout}
+                  >
+                    <LogOut className="mr-2 h-4 w-4" />
+                    Cerrar sesión
+                  </Button>
+                </div>
+              </>
+            ) : (
+              <Link href="/auth" className="block px-3 py-2">
+                <Button className="w-full">Iniciar sesión</Button>
+              </Link>
+            )}
           </div>
         </div>
       )}
