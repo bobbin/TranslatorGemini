@@ -51,9 +51,6 @@ export function setupAuth(app: Express) {
   app.use(session(sessionSettings));
   app.use(passport.initialize());
   app.use(passport.session());
-  
-  // Clear session store on startup for testing
-  storage.sessionStore.clear();
 
   passport.use(
     new LocalStrategy(async (username, password, done) => {
