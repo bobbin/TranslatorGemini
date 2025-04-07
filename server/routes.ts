@@ -1,4 +1,4 @@
-import type { Express, Request, Response } from "express";
+import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { insertTranslationSchema, updateTranslationSchema, LANGUAGES, SUPPORTED_FILE_TYPES } from "@shared/schema";
@@ -9,6 +9,7 @@ import os from 'os';
 import { extractChapters, reconstructEpub } from './lib/epub-handler';
 import { extractPages, reconstructPdf } from './lib/pdf-handler';
 import { translateText } from './lib/gemini-service';
+import { setupAuth } from './auth';
 
 // Set up multer for file upload handling
 const upload = multer({
@@ -26,7 +27,35 @@ const upload = multer({
   },
 });
 
+// Type augmentation for Express Request
+declare global {
+  namespace Express {
+    interface User {
+      id: number;
+      username: string;
+      email: string;
+      fullName: string | null;
+      password: string;
+      plan: string;
+      stripeCustomerId: string | null;
+      stripeSubscriptionId: string | null;
+      createdAt: Date;
+      updatedAt: Date;
+    }
+  }
+}
+
+// Authentication middleware
+function isAuthenticated(req: Request, res: Response, next: NextFunction) {
+  if (req.isAuthenticated()) {
+    return next();
+  }
+  res.status(401).json({ message: 'Unauthorized' });
+}
+
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Setup authentication routes
+  setupAuth(app);
   // Get languages
   app.get('/api/languages', (_req: Request, res: Response) => {
     res.json({ languages: LANGUAGES });
@@ -38,11 +67,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get all translations for a user
-  app.get('/api/translations', async (req: Request, res: Response) => {
+  app.get('/api/translations', isAuthenticated, async (req: Request, res: Response) => {
     try {
-      // In a real app, we'd get the userId from the auth session
-      // For demo, we're using user ID 1
-      const userId = 1;
+      const userId = req.user!.id;
       const translations = await storage.getUserTranslations(userId);
       res.json(translations);
     } catch (error) {
@@ -51,11 +78,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get recent translations for a user
-  app.get('/api/translations/recent', async (req: Request, res: Response) => {
+  app.get('/api/translations/recent', isAuthenticated, async (req: Request, res: Response) => {
     try {
-      // In a real app, we'd get the userId from the auth session
-      // For demo, we're using user ID 1
-      const userId = 1;
+      const userId = req.user!.id;
       const limit = req.query.limit ? parseInt(req.query.limit as string) : 5;
       const translations = await storage.getRecentTranslations(userId, limit);
       res.json(translations);
@@ -65,13 +90,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get a specific translation
-  app.get('/api/translations/:id', async (req: Request, res: Response) => {
+  app.get('/api/translations/:id', isAuthenticated, async (req: Request, res: Response) => {
     try {
       const id = parseInt(req.params.id);
       const translation = await storage.getTranslation(id);
       
       if (!translation) {
         return res.status(404).json({ message: 'Translation not found' });
+      }
+      
+      // Check if the translation belongs to the authenticated user
+      if (translation.userId !== req.user!.id) {
+        return res.status(403).json({ message: 'Forbidden' });
       }
       
       res.json(translation);
@@ -81,7 +111,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Create a new translation
-  app.post('/api/translations', upload.single('file'), async (req: Request, res: Response) => {
+  app.post('/api/translations', isAuthenticated, upload.single('file'), async (req: Request, res: Response) => {
     try {
       const file = req.file;
       if (!file) {
@@ -95,7 +125,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Validate request body
       const payload = {
-        userId: 1, // In a real app, get from auth session
+        userId: req.user!.id,
         fileName: file.originalname,
         fileType,
         sourceLanguage: req.body.sourceLanguage,
@@ -145,7 +175,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             chapter.text,
             result.data.sourceLanguage,
             result.data.targetLanguage,
-            result.data.customPrompt
+            result.data.customPrompt || undefined
           );
 
           translatedChapters.push({
@@ -191,7 +221,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             page.text,
             result.data.sourceLanguage,
             result.data.targetLanguage,
-            result.data.customPrompt
+            result.data.customPrompt || undefined
           );
 
           translatedPages.push({
@@ -237,14 +267,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Update translation status (for admin or testing purposes)
-  app.patch('/api/translations/:id', async (req: Request, res: Response) => {
+  // Update translation status
+  app.patch('/api/translations/:id', isAuthenticated, async (req: Request, res: Response) => {
     try {
       const id = parseInt(req.params.id);
       const translation = await storage.getTranslation(id);
       
       if (!translation) {
         return res.status(404).json({ message: 'Translation not found' });
+      }
+      
+      // Check if the translation belongs to the authenticated user
+      if (translation.userId !== req.user!.id) {
+        return res.status(403).json({ message: 'Forbidden' });
       }
       
       const result = updateTranslationSchema.safeParse(req.body);
@@ -259,6 +294,47 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(updatedTranslation);
     } catch (error) {
       res.status(500).json({ message: 'Failed to update translation' });
+    }
+  });
+
+  // Test auth endpoint
+  app.get('/api/auth-test', isAuthenticated, (req: Request, res: Response) => {
+    const { password, ...userWithoutPassword } = req.user!;
+    res.json({
+      message: 'Authentication successful',
+      user: userWithoutPassword
+    });
+  });
+
+  // Download a translated file
+  app.get('/api/translations/:id/download', isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      const translation = await storage.getTranslation(id);
+      
+      if (!translation) {
+        return res.status(404).json({ message: 'Translation not found' });
+      }
+      
+      // Check if the translation belongs to the authenticated user
+      if (translation.userId !== req.user!.id) {
+        return res.status(403).json({ message: 'Forbidden' });
+      }
+      
+      // Check if translation is completed
+      if (translation.status !== 'completed') {
+        return res.status(400).json({ message: 'Translation is not completed yet' });
+      }
+      
+      // In a real app, we would get the file from cloud storage
+      // For demo purposes, we'll send a simple buffer with sample content
+      const fileContent = Buffer.from(`This is the translated content for ${translation.fileName}`);
+      
+      res.setHeader('Content-Type', translation.fileType === 'epub' ? 'application/epub+zip' : 'application/pdf');
+      res.setHeader('Content-Disposition', `attachment; filename="translated-${translation.fileName}"`);
+      res.send(fileContent);
+    } catch (error) {
+      res.status(500).json({ message: 'Failed to download translation' });
     }
   });
 
