@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from "react";
-import { useToast } from "@/hooks/use-toast";
-import { apiRequest } from "@/lib/queryClient";
+import { useToast } from "./use-toast";
+import { apiRequest } from "../lib/queryClient";
 
 interface User {
   id: number;
@@ -36,6 +36,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     }
     setIsLoading(false);
+
+    // Also fetch current user from server to verify session is still valid
+    const verifySession = async () => {
+      try {
+        const res = await fetch("/api/user", {
+          credentials: "include",
+        });
+        
+        if (res.ok) {
+          const userData = await res.json();
+          setUser(userData);
+          localStorage.setItem("user", JSON.stringify(userData));
+        } else if (res.status === 401) {
+          // Session expired, clear local storage
+          setUser(null);
+          localStorage.removeItem("user");
+        }
+      } catch (error) {
+        console.error("Failed to verify session", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    verifySession();
   }, []);
 
   const login = async (username: string, password: string) => {
@@ -89,13 +114,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const logout = () => {
-    setUser(null);
-    localStorage.removeItem("user");
-    toast({
-      title: "Logged out",
-      description: "You have been logged out successfully",
-    });
+  const logout = async () => {
+    try {
+      await apiRequest("POST", "/api/logout");
+    } catch (error) {
+      console.error("Error during logout:", error);
+    } finally {
+      setUser(null);
+      localStorage.removeItem("user");
+      toast({
+        title: "Logged out",
+        description: "You have been logged out successfully",
+      });
+    }
   };
 
   return (

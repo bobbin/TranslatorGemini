@@ -7,6 +7,7 @@ import LandingPage from "@/pages/landing";
 import Dashboard from "@/pages/dashboard";
 import Translations from "@/pages/translations";
 import Navbar from "@/components/layout/navbar";
+import { AuthProvider } from "./hooks/use-auth";
 
 function Router() {
   const [location] = useLocation();
@@ -29,8 +30,10 @@ function Router() {
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <Router />
-      <Toaster />
+      <AuthProvider>
+        <Router />
+        <Toaster />
+      </AuthProvider>
     </QueryClientProvider>
   );
 }
