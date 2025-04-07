@@ -17,9 +17,13 @@ export async function apiRequest(
 
   const res = await fetch(url, {
     method,
-    headers: isFormData ? {} : data ? { "Content-Type": "application/json" } : {},
+    headers: isFormData ? {} : {
+      ...(data ? { "Content-Type": "application/json" } : {}),
+      "Accept": "application/json"
+    },
     body: isFormData ? data as FormData : data ? JSON.stringify(data) : undefined,
     credentials: "include",
+    mode: "cors"
   });
 
   await throwIfResNotOk(res);
