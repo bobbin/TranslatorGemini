@@ -1,144 +1,121 @@
-import { FC } from "react";
-import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Check } from "lucide-react";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 
-interface PricingPlan {
+interface PlanProps {
   name: string;
-  description: string;
   price: string;
-  period: string;
+  description: string;
   features: string[];
-  button: {
-    text: string;
-    variant: "default" | "outline" | "secondary" | "ghost" | "link" | "destructive";
-    action: string;
-  };
-  highlight?: boolean;
+  isPopular?: boolean;
+  buttonText: string;
+  buttonVariant?: "default" | "outline";
 }
 
-const plans: PricingPlan[] = [
-  {
-    name: "Gratuito",
-    description: "Perfecto para probar la plataforma y hacer pequeñas traducciones.",
-    price: "€0",
-    period: "/mes",
-    features: [
-      "Hasta 3 traducciones al mes",
-      "Archivos de hasta 1 MB",
-      "Soporte por email",
-    ],
-    button: {
-      text: "Comenzar gratis",
-      variant: "outline",
-      action: "/register",
-    },
-  },
-  {
-    name: "Profesional",
-    description: "Ideal para traducciones regulares y libros de mayor tamaño.",
-    price: "€19",
-    period: "/mes",
-    features: [
-      "Traducciones ilimitadas",
-      "Archivos de hasta 20 MB",
-      "Soporte prioritario",
-      "Personalización avanzada de traducciones",
-    ],
-    button: {
-      text: "Obtener plan Pro",
-      variant: "default",
-      action: "/register",
-    },
-    highlight: true,
-  },
-  {
-    name: "Empresarial",
-    description: "Para editoriales y traductores profesionales.",
-    price: "€49",
-    period: "/mes",
-    features: [
-      "Todo lo del plan Pro",
-      "Archivos de hasta 50 MB",
-      "API para integraciones",
-      "Soporte personalizado 24/7",
-    ],
-    button: {
-      text: "Contactar ventas",
-      variant: "outline",
-      action: "/contact",
-    },
-  },
-];
-
-const Pricing: FC = () => {
+function Plan({ 
+  name, 
+  price, 
+  description, 
+  features, 
+  isPopular, 
+  buttonText,
+  buttonVariant = "outline"
+}: PlanProps) {
   return (
-    <div id="pricing" className="bg-white py-16">
+    <div className={`
+      ${isPopular 
+        ? "border-2 border-primary-500 rounded-lg p-8 bg-white shadow-lg relative" 
+        : "border border-gray-200 rounded-lg p-8 bg-white shadow-sm hover:shadow-md transition-shadow"
+      }
+    `}>
+      {isPopular && (
+        <div className="absolute top-0 -translate-y-1/2 left-1/2 -translate-x-1/2 bg-primary-500 text-white px-4 py-1 rounded-full text-sm font-medium">
+          Most Popular
+        </div>
+      )}
+      <h3 className="text-lg font-medium text-gray-900">{name}</h3>
+      <p className="mt-4 text-3xl font-bold text-gray-900">{price}<span className="text-lg font-normal text-gray-500">/month</span></p>
+      <p className="mt-4 text-gray-600">
+        {description}
+      </p>
+      <ul className="mt-6 space-y-4">
+        {features.map((feature, index) => (
+          <li key={index} className="flex">
+            <Check className="h-5 w-5 text-green-500 mr-2 flex-shrink-0" />
+            <span className="text-gray-600">{feature}</span>
+          </li>
+        ))}
+      </ul>
+      <div className="mt-8">
+        <Button 
+          className="w-full" 
+          variant={buttonVariant}
+        >
+          {buttonText}
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+export function Pricing() {
+  return (
+    <div id="pricing" className="py-16 bg-white">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center">
-          <h2 className="text-base font-semibold text-primary tracking-wide uppercase">Precios</h2>
-          <p className="mt-1 text-4xl font-extrabold text-gray-900 sm:text-5xl sm:tracking-tight">
-            Planes que se adaptan a tus necesidades
-          </p>
-          <p className="max-w-xl mt-5 mx-auto text-xl text-gray-500">
-            Elije el plan que mejor se ajuste a tus necesidades de traducción.
+          <h2 className="text-3xl font-bold text-gray-900">Simple, Transparent Pricing</h2>
+          <p className="mt-4 text-lg text-gray-600 max-w-3xl mx-auto">
+            Choose the plan that works for your translation needs.
           </p>
         </div>
 
-        <div className="mt-12 space-y-4 sm:mt-16 sm:space-y-0 sm:grid sm:grid-cols-2 sm:gap-6 lg:grid-cols-3 lg:max-w-4xl lg:mx-auto xl:max-w-none xl:mx-0">
-          {plans.map((plan, index) => (
-            <Card
-              key={index}
-              className={plan.highlight ? "border-primary" : ""}
-            >
-              <CardHeader>
-                <CardTitle>{plan.name}</CardTitle>
-                <CardDescription>{plan.description}</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="mt-2 mb-8">
-                  <span className="text-4xl font-extrabold">{plan.price}</span>
-                  <span className="text-base font-medium text-gray-500">{plan.period}</span>
-                </div>
-                
-                <div>
-                  <h3 className="text-xs font-medium text-gray-900 tracking-wide uppercase">¿Qué incluye?</h3>
-                  <ul className="mt-4 space-y-3">
-                    {plan.features.map((feature, i) => (
-                      <li key={i} className="flex items-start">
-                        <div className="flex-shrink-0">
-                          <Check className="h-5 w-5 text-emerald-500" />
-                        </div>
-                        <p className="ml-3 text-sm text-gray-500">{feature}</p>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              </CardContent>
-              <CardFooter>
-                <Link href={plan.button.action}>
-                  <Button 
-                    className="w-full" 
-                    variant={plan.button.variant}
-                  >
-                    {plan.button.text}
-                  </Button>
-                </Link>
-              </CardFooter>
-            </Card>
-          ))}
+        <div className="mt-16 grid grid-cols-1 md:grid-cols-3 gap-8">
+          <Plan
+            name="Basic"
+            price="$9.99"
+            description="Perfect for occasional translations."
+            features={[
+              "5 books per month",
+              "Max 300 pages per book",
+              "10 language pairs",
+              "Email support"
+            ]}
+            buttonText="Choose Basic"
+            buttonVariant="outline"
+          />
+
+          <Plan
+            name="Professional"
+            price="$24.99"
+            description="For regular translation requirements."
+            features={[
+              "20 books per month",
+              "Unlimited pages",
+              "All language pairs",
+              "Priority support",
+              "Custom translation prompts"
+            ]}
+            isPopular={true}
+            buttonText="Choose Professional"
+            buttonVariant="default"
+          />
+
+          <Plan
+            name="Enterprise"
+            price="$99.99"
+            description="For businesses with high-volume needs."
+            features={[
+              "Unlimited books",
+              "Unlimited pages",
+              "All language pairs",
+              "24/7 dedicated support",
+              "API access",
+              "Custom integrations"
+            ]}
+            buttonText="Contact Sales"
+            buttonVariant="outline"
+          />
         </div>
       </div>
     </div>
   );
-};
-
-export default Pricing;
+}

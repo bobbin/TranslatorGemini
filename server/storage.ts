@@ -1,42 +1,42 @@
-import { translations, translationChapters, users, type User, type InsertUser, type Translation, type InsertTranslation, type TranslationChapter, type InsertTranslationChapter } from "@shared/schema";
+import { 
+  users, type User, type InsertUser,
+  translations, type Translation, type InsertTranslation, type UpdateTranslation
+} from "@shared/schema";
+
+// modify the interface with any CRUD methods
+// you might need
 
 export interface IStorage {
   // User methods
   getUser(id: number): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
-  getUserByEmail(email: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
   
   // Translation methods
-  getTranslationsByUserId(userId: number): Promise<Translation[]>;
-  getTranslation(id: number): Promise<Translation | undefined>;
   createTranslation(translation: InsertTranslation): Promise<Translation>;
-  updateTranslationStatus(id: number, status: string, progress: number): Promise<Translation | undefined>;
-  updateTranslationFilePath(id: number, translatedFilePath: string): Promise<Translation | undefined>;
-  updateTranslationProgress(id: number, progress: number): Promise<Translation | undefined>;
-  completeTranslation(id: number, translatedFilePath: string): Promise<Translation | undefined>;
-  
-  // Translation chapter methods
-  getChaptersByTranslationId(translationId: number): Promise<TranslationChapter[]>;
-  createTranslationChapter(chapter: InsertTranslationChapter): Promise<TranslationChapter>;
-  updateChapterStatus(id: number, status: string, progress: number): Promise<TranslationChapter | undefined>;
+  getTranslation(id: number): Promise<Translation | undefined>;
+  updateTranslation(id: number, update: UpdateTranslation): Promise<Translation | undefined>;
+  getUserTranslations(userId: number): Promise<Translation[]>;
+  getRecentTranslations(userId: number, limit?: number): Promise<Translation[]>;
 }
 
 export class MemStorage implements IStorage {
   private users: Map<number, User>;
   private translations: Map<number, Translation>;
-  private chapters: Map<number, TranslationChapter>;
-  private userId: number;
-  private translationId: number;
-  private chapterId: number;
+  private userIdCounter: number;
+  private translationIdCounter: number;
 
   constructor() {
     this.users = new Map();
     this.translations = new Map();
-    this.chapters = new Map();
-    this.userId = 1;
-    this.translationId = 1;
-    this.chapterId = 1;
+    this.userIdCounter = 1;
+    this.translationIdCounter = 1;
+    
+    // Create a demo user
+    this.createUser({
+      username: "demo",
+      password: "password"
+    });
   }
 
   // User methods
@@ -50,134 +50,69 @@ export class MemStorage implements IStorage {
     );
   }
 
-  async getUserByEmail(email: string): Promise<User | undefined> {
-    return Array.from(this.users.values()).find(
-      (user) => user.email === email,
-    );
-  }
-
   async createUser(insertUser: InsertUser): Promise<User> {
-    const id = this.userId++;
-    const now = new Date();
-    const user: User = { 
-      ...insertUser, 
-      id,
-      createdAt: now
-    };
+    const id = this.userIdCounter++;
+    const user: User = { ...insertUser, id };
     this.users.set(id, user);
     return user;
   }
-
+  
   // Translation methods
-  async getTranslationsByUserId(userId: number): Promise<Translation[]> {
-    return Array.from(this.translations.values()).filter(
-      (translation) => translation.userId === userId,
-    );
-  }
-
-  async getTranslation(id: number): Promise<Translation | undefined> {
-    return this.translations.get(id);
-  }
-
   async createTranslation(insertTranslation: InsertTranslation): Promise<Translation> {
-    const id = this.translationId++;
+    const id = this.translationIdCounter++;
     const now = new Date();
+    
     const translation: Translation = {
       ...insertTranslation,
       id,
+      originalFileUrl: undefined,
+      translatedFileUrl: undefined,
+      status: "pending",
       progress: 0,
       createdAt: now,
-      completedAt: null,
-      translatedFilePath: null,
-      metadata: {}
+      updatedAt: now,
+      error: undefined,
+      metadata: undefined,
+      totalPages: undefined,
+      completedPages: 0
     };
+    
     this.translations.set(id, translation);
     return translation;
   }
-
-  async updateTranslationStatus(id: number, status: string, progress: number): Promise<Translation | undefined> {
+  
+  async getTranslation(id: number): Promise<Translation | undefined> {
+    return this.translations.get(id);
+  }
+  
+  async updateTranslation(id: number, update: UpdateTranslation): Promise<Translation | undefined> {
     const translation = this.translations.get(id);
-    if (!translation) return undefined;
-
+    
+    if (!translation) {
+      return undefined;
+    }
+    
     const updatedTranslation: Translation = {
       ...translation,
-      status,
-      progress
+      ...update,
+      updatedAt: new Date()
     };
+    
     this.translations.set(id, updatedTranslation);
     return updatedTranslation;
   }
-
-  async updateTranslationFilePath(id: number, translatedFilePath: string): Promise<Translation | undefined> {
-    const translation = this.translations.get(id);
-    if (!translation) return undefined;
-
-    const updatedTranslation: Translation = {
-      ...translation,
-      translatedFilePath
-    };
-    this.translations.set(id, updatedTranslation);
-    return updatedTranslation;
+  
+  async getUserTranslations(userId: number): Promise<Translation[]> {
+    return Array.from(this.translations.values())
+      .filter(translation => translation.userId === userId)
+      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
   }
-
-  async updateTranslationProgress(id: number, progress: number): Promise<Translation | undefined> {
-    const translation = this.translations.get(id);
-    if (!translation) return undefined;
-
-    const updatedTranslation: Translation = {
-      ...translation,
-      progress
-    };
-    this.translations.set(id, updatedTranslation);
-    return updatedTranslation;
-  }
-
-  async completeTranslation(id: number, translatedFilePath: string): Promise<Translation | undefined> {
-    const translation = this.translations.get(id);
-    if (!translation) return undefined;
-
-    const updatedTranslation: Translation = {
-      ...translation,
-      status: 'completed',
-      progress: 100,
-      completedAt: new Date(),
-      translatedFilePath
-    };
-    this.translations.set(id, updatedTranslation);
-    return updatedTranslation;
-  }
-
-  // Translation chapter methods
-  async getChaptersByTranslationId(translationId: number): Promise<TranslationChapter[]> {
-    return Array.from(this.chapters.values()).filter(
-      (chapter) => chapter.translationId === translationId,
-    );
-  }
-
-  async createTranslationChapter(insertChapter: InsertTranslationChapter): Promise<TranslationChapter> {
-    const id = this.chapterId++;
-    const now = new Date();
-    const chapter: TranslationChapter = {
-      ...insertChapter,
-      id,
-      progress: 0,
-      createdAt: now
-    };
-    this.chapters.set(id, chapter);
-    return chapter;
-  }
-
-  async updateChapterStatus(id: number, status: string, progress: number): Promise<TranslationChapter | undefined> {
-    const chapter = this.chapters.get(id);
-    if (!chapter) return undefined;
-
-    const updatedChapter: TranslationChapter = {
-      ...chapter,
-      status,
-      progress
-    };
-    this.chapters.set(id, updatedChapter);
-    return updatedChapter;
+  
+  async getRecentTranslations(userId: number, limit = 5): Promise<Translation[]> {
+    return Array.from(this.translations.values())
+      .filter(translation => translation.userId === userId)
+      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+      .slice(0, limit);
   }
 }
 

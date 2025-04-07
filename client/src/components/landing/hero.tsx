@@ -1,53 +1,54 @@
-import { FC } from "react";
-import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
-import { Play } from "lucide-react";
+import { Link } from "wouter";
 
-const Hero: FC = () => {
+export function Hero() {
   return (
-    <div className="py-12 sm:py-16 bg-gradient-to-r from-primary to-accent">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="lg:grid lg:grid-cols-12 lg:gap-8">
-          <div className="sm:text-center md:max-w-2xl md:mx-auto lg:col-span-6 lg:text-left">
-            <h1 className="text-4xl font-extrabold tracking-tight text-white sm:text-5xl md:text-6xl">
-              <span className="block">Traduce libros con</span>
-              <span className="block text-indigo-200">inteligencia artificial</span>
+    <div className="bg-gradient-to-r from-primary-600 to-[#8B5CF6] text-white">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 md:py-24">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+          <div>
+            <h1 className="text-4xl md:text-5xl font-bold leading-tight">
+              AI-Powered Book Translation
             </h1>
-            <p className="mt-3 text-base text-white sm:mt-5 sm:text-xl lg:text-lg xl:text-xl">
-              Traduce tus libros EPUB y PDF a cualquier idioma conservando el formato original gracias a la potencia de Google Gemini 2.0 Flash AI.
+            <p className="mt-6 text-xl md:text-2xl text-primary-50">
+              Translate your EPUBs and PDFs instantly while preserving the original formatting using Google Gemini 2.0 Flash AI.
             </p>
-            <div className="mt-8 sm:max-w-lg sm:mx-auto sm:text-center lg:text-left lg:mx-0">
-              <Link href="/register">
-                <Button size="lg" className="bg-emerald-500 hover:bg-emerald-600 text-white">
-                  Comenzar gratis
+            <div className="mt-10 flex flex-col sm:flex-row gap-4">
+              <Link href="/dashboard">
+                <Button size="lg" variant="default" className="bg-white text-primary-700 hover:bg-primary-50">
+                  Start Translating
                 </Button>
               </Link>
-              <Link href="#features">
-                <Button variant="outline" size="lg" className="ml-4 bg-white text-primary-600 hover:bg-gray-50">
-                  Ver demo
-                </Button>
-              </Link>
+              <Button 
+                size="lg" 
+                variant="outline" 
+                className="border-white text-white hover:bg-white/10"
+                onClick={() => {
+                  const element = document.getElementById('how-it-works');
+                  element?.scrollIntoView({ behavior: 'smooth' });
+                }}
+              >
+                Learn More
+              </Button>
             </div>
           </div>
-          <div className="mt-12 relative sm:max-w-lg sm:mx-auto lg:mt-0 lg:max-w-none lg:mx-0 lg:col-span-6 lg:flex lg:items-center">
-            <div className="relative mx-auto w-full rounded-lg shadow-lg lg:max-w-md">
-              <div className="relative block w-full bg-white rounded-lg overflow-hidden">
-                <svg
-                  className="w-full"
-                  viewBox="0 0 600 400"
-                  xmlns="http://www.w3.org/2000/svg"
-                >
-                  <rect width="600" height="400" fill="#e2e8f0" />
-                  <path d="M150 100 L450 100 L450 300 L150 300 Z" fill="#f8fafc" />
-                  <path d="M200 150 L400 150" stroke="#cbd5e1" strokeWidth="4" />
-                  <path d="M200 180 L400 180" stroke="#cbd5e1" strokeWidth="4" />
-                  <path d="M200 210 L400 210" stroke="#cbd5e1" strokeWidth="4" />
-                  <path d="M200 240 L350 240" stroke="#cbd5e1" strokeWidth="4" />
-                </svg>
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <Button variant="default" className="h-16 w-16 rounded-full flex items-center justify-center">
-                    <Play className="h-8 w-8" />
-                  </Button>
+          <div className="relative hidden lg:block">
+            <div className="relative">
+              <svg className="w-full" viewBox="0 0 600 400" xmlns="http://www.w3.org/2000/svg">
+                <rect width="560" height="320" x="20" y="40" rx="8" fill="#f8fafc" stroke="#e2e8f0" strokeWidth="2" />
+                <rect width="180" height="280" x="40" y="60" rx="4" fill="#e2e8f0" />
+                <rect width="320" height="40" x="240" y="60" rx="4" fill="#e2e8f0" />
+                <rect width="320" height="220" x="240" y="120" rx="4" fill="#e2e8f0" />
+              </svg>
+              <div className="absolute -left-8 -bottom-8 w-64 bg-white p-4 rounded-lg shadow-lg">
+                <div className="flex items-center">
+                  <svg className="w-5 h-5 text-green-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                  </svg>
+                  <p className="text-gray-800 font-medium">Translation Complete</p>
+                </div>
+                <div className="mt-2 w-full bg-gray-100 rounded-full h-2">
+                  <div className="bg-green-500 h-2 rounded-full w-full"></div>
                 </div>
               </div>
             </div>
@@ -56,6 +57,4 @@ const Hero: FC = () => {
       </div>
     </div>
   );
-};
-
-export default Hero;
+}

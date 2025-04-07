@@ -6,66 +6,98 @@ export const users = pgTable("users", {
   id: serial("id").primaryKey(),
   username: text("username").notNull().unique(),
   password: text("password").notNull(),
-  email: text("email").notNull().unique(),
-  plan: text("plan").default("free").notNull(), // 'free', 'pro', 'enterprise'
-  createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
 export const insertUserSchema = createInsertSchema(users).pick({
   username: true,
   password: true,
-  email: true,
-  plan: true,
 });
 
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
 
+// Types of files supported for translation
+export const SUPPORTED_FILE_TYPES = ["epub", "pdf"] as const;
+export type FileType = typeof SUPPORTED_FILE_TYPES[number];
+
+// Translation status types
+export const TRANSLATION_STATUS = [
+  "pending",
+  "extracting",
+  "translating",
+  "reconstructing",
+  "completed",
+  "failed",
+] as const;
+export type TranslationStatus = typeof TRANSLATION_STATUS[number];
+
+// Languages supported for translation
+export const LANGUAGES = [
+  "English",
+  "Spanish",
+  "French",
+  "German",
+  "Italian",
+  "Japanese",
+  "Chinese",
+  "Russian",
+  "Portuguese",
+  "Korean",
+  "Arabic",
+  "Hindi",
+] as const;
+export type Language = typeof LANGUAGES[number];
+
+// Translation projects table
 export const translations = pgTable("translations", {
   id: serial("id").primaryKey(),
-  userId: integer("user_id").notNull(),
+  userId: integer("user_id").notNull().references(() => users.id),
   fileName: text("file_name").notNull(),
-  fileType: text("file_type").notNull(), // 'epub', 'pdf'
+  fileType: text("file_type").notNull(),
+  originalFileUrl: text("original_file_url"),
+  translatedFileUrl: text("translated_file_url"),
   sourceLanguage: text("source_language").notNull(),
   targetLanguage: text("target_language").notNull(),
-  status: text("status").notNull(), // 'pending', 'processing', 'completed', 'failed'
-  progress: integer("progress").default(0).notNull(), // percentage completed
-  originalFilePath: text("original_file_path"),
-  translatedFilePath: text("translated_file_path"),
+  status: text("status").notNull().default("pending"),
+  progress: integer("progress").notNull().default(0),
+  customPrompt: text("custom_prompt"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
-  completedAt: timestamp("completed_at"),
-  metadata: json("metadata").default({}).notNull(), // store additional metadata like chapters, page count, etc.
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  error: text("error"),
+  metadata: json("metadata"),
+  totalPages: integer("total_pages"),
+  completedPages: integer("completed_pages").default(0),
 });
 
-export const insertTranslationSchema = createInsertSchema(translations).pick({
-  userId: true,
-  fileName: true,
-  fileType: true,
-  sourceLanguage: true,
-  targetLanguage: true,
-  status: true,
-  originalFilePath: true,
-});
+// Schema for creating a new translation
+export const insertTranslationSchema = createInsertSchema(translations)
+  .pick({
+    userId: true,
+    fileName: true,
+    fileType: true,
+    sourceLanguage: true,
+    targetLanguage: true,
+    customPrompt: true,
+  })
+  .extend({
+    fileType: z.enum(SUPPORTED_FILE_TYPES),
+    sourceLanguage: z.enum(LANGUAGES),
+    targetLanguage: z.enum(LANGUAGES),
+  });
 
 export type InsertTranslation = z.infer<typeof insertTranslationSchema>;
 export type Translation = typeof translations.$inferSelect;
 
-export const translationChapters = pgTable("translation_chapters", {
-  id: serial("id").primaryKey(),
-  translationId: integer("translation_id").notNull(),
-  chapterNumber: integer("chapter_number").notNull(),
-  chapterTitle: text("chapter_title"),
-  status: text("status").notNull(), // 'pending', 'processing', 'completed', 'failed'
-  progress: integer("progress").default(0).notNull(), // percentage completed
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-});
+// Schema for updating a translation
+export const updateTranslationSchema = createInsertSchema(translations)
+  .pick({
+    status: true,
+    progress: true,
+    translatedFileUrl: true,
+    error: true,
+    completedPages: true,
+    totalPages: true,
+  })
+  .partial();
 
-export const insertTranslationChapterSchema = createInsertSchema(translationChapters).pick({
-  translationId: true,
-  chapterNumber: true,
-  chapterTitle: true,
-  status: true,
-});
-
-export type InsertTranslationChapter = z.infer<typeof insertTranslationChapterSchema>;
-export type TranslationChapter = typeof translationChapters.$inferSelect;
+export type UpdateTranslation = z.infer<typeof updateTranslationSchema>;

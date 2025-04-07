@@ -1,14 +1,9 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { BookOpen, Languages, HardDrive } from "lucide-react";
 import Sidebar from "@/components/layout/sidebar";
-import { StatsCard } from "@/components/dashboard/stats-card";
-import { TranslationForm } from "@/components/dashboard/translation-form";
 import { TranslationItem } from "@/components/dashboard/translation-item";
 import { TranslationProgressModal } from "@/components/dashboard/translation-progress-modal";
 import { Translation } from "@shared/schema";
-import { Link } from "wouter";
-import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -16,37 +11,57 @@ import {
   CardTitle,
   CardDescription,
 } from "@/components/ui/card";
+import { useToast } from "@/hooks/use-toast";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { apiRequest } from "@/lib/queryClient";
 import { useMobile } from "@/hooks/use-mobile";
 import { Menu } from "lucide-react";
 
-export default function Dashboard() {
+export default function Translations() {
   const [selectedTranslationId, setSelectedTranslationId] = useState<number | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
   const isMobile = useMobile();
 
-  // Fetch recent translations
+  // Fetch all translations
   const { data: translations, isLoading } = useQuery<Translation[]>({
-    queryKey: ['/api/translations/recent'],
+    queryKey: ['/api/translations'],
   });
 
-  // Calculate stats
-  const stats = {
-    booksTranslated: translations?.filter(t => t.status === 'completed').length || 0,
-    languagesUsed: translations 
-      ? [...new Set([...translations.map(t => t.sourceLanguage), ...translations.map(t => t.targetLanguage)])].length 
-      : 0,
-    storageUsed: "0 MB", // This would be calculated from actual file sizes in a real app
-  };
+  // Mutation for retrying a failed translation
+  const retryTranslation = useMutation({
+    mutationFn: async (id: number) => {
+      return apiRequest('PATCH', `/api/translations/${id}`, {
+        status: 'pending',
+        progress: 0,
+        error: null
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/translations'] });
+      toast({
+        title: "Translation restarted",
+        description: "Your translation is being processed again",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error restarting translation",
+        description: error.message || "Please try again later",
+        variant: "destructive",
+      });
+    }
+  });
 
   const handleViewDetails = (id: number) => {
     setSelectedTranslationId(id);
     setIsModalOpen(true);
   };
 
-  const handleTranslationCreated = (id: number) => {
-    setSelectedTranslationId(id);
-    setIsModalOpen(true);
+  const handleRetry = (id: number) => {
+    retryTranslation.mutate(id);
   };
 
   const toggleMobileSidebar = () => {
@@ -84,7 +99,7 @@ export default function Dashboard() {
                 <Menu className="h-6 w-6" />
               </button>
             )}
-            <h1 className="text-2xl font-semibold text-gray-900">Dashboard</h1>
+            <h1 className="text-2xl font-semibold text-gray-900">Translation History</h1>
             <div className="flex items-center">
               <div className="h-8 w-8 rounded-full bg-primary-500 flex items-center justify-center text-white">
                 JD
@@ -93,50 +108,12 @@ export default function Dashboard() {
           </div>
         </header>
 
-        {/* Dashboard Content */}
+        {/* Translations Content */}
         <main className="p-6">
-          {/* Stats Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-            <StatsCard 
-              icon={<BookOpen className="h-5 w-5" />}
-              label="Books Translated"
-              value={stats.booksTranslated}
-            />
-            <StatsCard 
-              icon={<Languages className="h-5 w-5" />}
-              label="Languages Used"
-              value={stats.languagesUsed}
-            />
-            <StatsCard 
-              icon={<HardDrive className="h-5 w-5" />}
-              label="Storage Used"
-              value={stats.storageUsed}
-            />
-          </div>
-
-          {/* New Translation Section */}
-          <Card className="mb-6">
-            <CardHeader>
-              <CardTitle>New Translation</CardTitle>
-              <CardDescription>Upload a file and select languages to start translation</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <TranslationForm onTranslationCreated={handleTranslationCreated} />
-            </CardContent>
-          </Card>
-
-          {/* Recent Translations */}
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
-              <div>
-                <CardTitle>Recent Translations</CardTitle>
-                <CardDescription>Your recently translated documents</CardDescription>
-              </div>
-              <Link href="/translations">
-                <Button variant="outline" size="sm">
-                  View all
-                </Button>
-              </Link>
+            <CardHeader>
+              <CardTitle>Your Translations</CardTitle>
+              <CardDescription>All your translation projects</CardDescription>
             </CardHeader>
             <CardContent>
               {isLoading ? (
@@ -149,11 +126,12 @@ export default function Dashboard() {
                     key={translation.id}
                     translation={translation}
                     onViewDetails={handleViewDetails}
+                    onRetry={handleRetry}
                   />
                 ))
               ) : (
                 <div className="py-16 text-center">
-                  <p className="text-gray-500">No translations found. Start by uploading a file above.</p>
+                  <p className="text-gray-500">No translations found. Go to dashboard to start a new translation.</p>
                 </div>
               )}
             </CardContent>
