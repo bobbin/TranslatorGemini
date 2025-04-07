@@ -47,11 +47,16 @@ declare global {
 
 // Authentication middleware
 function isAuthenticated(req: Request, res: Response, next: NextFunction) {
+  console.log('isAuthenticated check ->', {
+    session: req.session,
+    sessionID: req.sessionID,
+    user: req.user,
+    isAuthenticated: req.isAuthenticated()
+  });
+  
   if (req.isAuthenticated()) {
     return next();
   }
-  console.log('Session:', req.session);
-  console.log('User:', req.user);
   res.status(401).json({ message: 'Unauthorized' });
 }
 
