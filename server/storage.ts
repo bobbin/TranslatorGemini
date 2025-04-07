@@ -346,4 +346,5 @@ export class DatabaseStorage implements IStorage {
 }
 
 // Use the database storage implementation
+// Nota: Estamos usando explícitamente la implementación de base de datos PostgreSQL
 export const storage = new DatabaseStorage();
