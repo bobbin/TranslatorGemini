@@ -35,13 +35,13 @@ export function setupAuth(app: Express) {
   const sessionSettings: session.SessionOptions = {
     secret: sessionSecret,
     resave: true,
-    saveUninitialized: false,
+    saveUninitialized: true,
     store: storage.sessionStore,
-    name: 'sid',
+    name: 'connect.sid',
     cookie: {
       maxAge: 1000 * 60 * 60 * 24 * 7, // 1 week
       httpOnly: true,
-      secure: false,
+      secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
       path: '/'
     }
@@ -67,10 +67,18 @@ export function setupAuth(app: Express) {
     }),
   );
 
-  passport.serializeUser((user, done) => done(null, user.id));
+  passport.serializeUser((user: Express.User, done) => {
+    console.log('Serializing user:', user.id);
+    done(null, user.id);
+  });
+  
   passport.deserializeUser(async (id: number, done) => {
     try {
+      console.log('Deserializing user:', id);
       const user = await storage.getUser(id);
+      if (!user) {
+        return done(new Error('User not found'));
+      }
       done(null, user);
     } catch (err) {
       done(err);

@@ -50,6 +50,8 @@ function isAuthenticated(req: Request, res: Response, next: NextFunction) {
   if (req.isAuthenticated()) {
     return next();
   }
+  console.log('Session:', req.session);
+  console.log('User:', req.user);
   res.status(401).json({ message: 'Unauthorized' });
 }
 
