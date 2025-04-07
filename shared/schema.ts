@@ -111,6 +111,9 @@ export const translations = pgTable("translations", {
   fileType: text("file_type").notNull(),
   originalFileUrl: text("original_file_url"),
   translatedFileUrl: text("translated_file_url"),
+  // Claves S3 para los archivos
+  originalS3Key: text("original_s3_key"),
+  translatedS3Key: text("translated_s3_key"),
   sourceLanguage: text("source_language").notNull(),
   targetLanguage: text("target_language").notNull(),
   status: text("status").notNull().default("pending"),
@@ -133,11 +136,13 @@ export const insertTranslationSchema = createInsertSchema(translations)
     sourceLanguage: true,
     targetLanguage: true,
     customPrompt: true,
+    originalS3Key: true,
   })
   .extend({
     fileType: z.enum(SUPPORTED_FILE_TYPES),
     sourceLanguage: z.enum(LANGUAGES),
     targetLanguage: z.enum(LANGUAGES),
+    originalS3Key: z.string().optional(),
   });
 
 export type InsertTranslation = z.infer<typeof insertTranslationSchema>;
@@ -149,6 +154,8 @@ export const updateTranslationSchema = createInsertSchema(translations)
     status: true,
     progress: true,
     translatedFileUrl: true,
+    originalS3Key: true,
+    translatedS3Key: true,
     error: true,
     completedPages: true,
     totalPages: true,

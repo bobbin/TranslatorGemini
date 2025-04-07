@@ -105,10 +105,20 @@ export function TranslationItem({ translation, onViewDetails, onRetry }: Transla
             {translation.status === 'completed' && (
               <button 
                 className="text-gray-400 hover:text-gray-500"
-                onClick={() => {
-                  // Handle download logic
-                  if (translation.translatedFileUrl) {
-                    window.open(translation.translatedFileUrl, '_blank');
+                onClick={async () => {
+                  // Obtener URL de descarga prefirmada del servidor
+                  try {
+                    const response = await fetch(`/api/translations/${translation.id}/download`);
+                    if (!response.ok) {
+                      throw new Error('Failed to generate download link');
+                    }
+                    const data = await response.json();
+                    // Abrir URL de descarga en una nueva pestaña
+                    window.open(data.downloadUrl, '_blank');
+                  } catch (error) {
+                    console.error('Download error:', error);
+                    // Mostrar mensaje de error
+                    alert('Error generating download link. Please try again later.');
                   }
                 }}
               >
@@ -136,9 +146,17 @@ export function TranslationItem({ translation, onViewDetails, onRetry }: Transla
                   View Details
                 </DropdownMenuItem>
                 {translation.status === 'completed' && (
-                  <DropdownMenuItem onClick={() => {
-                    if (translation.translatedFileUrl) {
-                      window.open(translation.translatedFileUrl, '_blank');
+                  <DropdownMenuItem onClick={async () => {
+                    try {
+                      const response = await fetch(`/api/translations/${translation.id}/download`);
+                      if (!response.ok) {
+                        throw new Error('Failed to generate download link');
+                      }
+                      const data = await response.json();
+                      window.open(data.downloadUrl, '_blank');
+                    } catch (error) {
+                      console.error('Download error:', error);
+                      alert('Error generating download link. Please try again later.');
                     }
                   }}>
                     Download

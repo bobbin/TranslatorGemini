@@ -10,6 +10,12 @@ import { extractChapters, reconstructEpub } from './lib/epub-handler';
 import { extractPages, reconstructPdf } from './lib/pdf-handler';
 import { translateText } from './lib/gemini-service';
 import { setupAuth } from './auth';
+import { 
+  uploadFileToS3, 
+  generatePresignedUrl, 
+  deleteFileFromS3,
+  verifyS3Credentials 
+} from './lib/s3-service';
 
 // Set up multer for file upload handling
 const upload = multer({
@@ -120,6 +126,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Create a new translation
   app.post('/api/translations', isAuthenticated, upload.single('file'), async (req: Request, res: Response) => {
     try {
+      // Verificar las credenciales de S3
+      const s3Available = await verifyS3Credentials();
+      if (!s3Available) {
+        return res.status(500).json({ message: 'S3 storage is not configured properly' });
+      }
+
       const file = req.file;
       if (!file) {
         return res.status(400).json({ message: 'No file uploaded' });
@@ -148,8 +160,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      // Create translation record
-      const translation = await storage.createTranslation(result.data);
+      // Upload original file to S3
+      const mimeType = fileType === 'epub' ? 'application/epub+zip' : 'application/pdf';
+      const originalS3Key = await uploadFileToS3(
+        file.buffer, 
+        req.user!.id, 
+        file.originalname,
+        mimeType
+      );
+
+      // Create translation record with S3 key for original file
+      const translation = await storage.createTranslation({
+        ...result.data,
+        originalS3Key
+      });
       
       // Start the translation process (this would typically be done asynchronously)
       // Update status to "extracting"
@@ -255,15 +279,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
         translatedContent = await reconstructPdf(file.buffer, translatedPages);
       }
 
-      // In a real app, we would save the file to cloud storage
-      // For demo purposes, we'll simulate success
-      const translatedFileUrl = `/translated-${translation.id}.${fileType}`;
+      // Subir el archivo traducido a S3
+      const translatedFileName = `translated-${file.originalname}`;
+      // Asegurarnos de que translatedContent no sea undefined
+      if (!translatedContent) {
+        throw new Error('Failed to generate translated content');
+      }
+      
+      const translatedS3Key = await uploadFileToS3(
+        translatedContent, 
+        req.user!.id, 
+        translatedFileName,
+        mimeType
+      );
 
-      // Update to completed status
+      // Generar URLs prefirmadas para acceso temporal (15 minutos)
+      const translatedFileUrl = await generatePresignedUrl(translatedS3Key);
+
+      // Update to completed status with S3 key for translated file
       await storage.updateTranslation(translation.id, {
         status: 'completed',
         progress: 100,
-        translatedFileUrl
+        translatedFileUrl,
+        translatedS3Key
       });
 
       // Return the translation record
@@ -313,9 +351,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
     });
   });
 
-  // Download a translated file
+  // Download a translated file (generate presigned URL)
   app.get('/api/translations/:id/download', isAuthenticated, async (req: Request, res: Response) => {
     try {
+      // Verificar las credenciales de S3
+      const s3Available = await verifyS3Credentials();
+      if (!s3Available) {
+        return res.status(500).json({ message: 'S3 storage is not configured properly' });
+      }
+
       const id = parseInt(req.params.id);
       const translation = await storage.getTranslation(id);
       
@@ -333,15 +377,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: 'Translation is not completed yet' });
       }
       
-      // In a real app, we would get the file from cloud storage
-      // For demo purposes, we'll send a simple buffer with sample content
-      const fileContent = Buffer.from(`This is the translated content for ${translation.fileName}`);
+      // Check if the translated file exists in S3
+      if (!translation.translatedS3Key) {
+        return res.status(404).json({ message: 'Translated file not found in storage' });
+      }
       
-      res.setHeader('Content-Type', translation.fileType === 'epub' ? 'application/epub+zip' : 'application/pdf');
-      res.setHeader('Content-Disposition', `attachment; filename="translated-${translation.fileName}"`);
-      res.send(fileContent);
-    } catch (error) {
-      res.status(500).json({ message: 'Failed to download translation' });
+      // Generar una URL prefirmada para el archivo traducido (validez de 15 minutos)
+      const presignedUrl = await generatePresignedUrl(translation.translatedS3Key);
+      
+      // Devolver la URL prefirmada al cliente
+      res.json({ 
+        downloadUrl: presignedUrl,
+        fileName: `translated-${translation.fileName}`,
+        fileType: translation.fileType
+      });
+    } catch (error: any) {
+      console.error('Download error:', error);
+      res.status(500).json({ message: error.message || 'Failed to generate download link' });
     }
   });
 

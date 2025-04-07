@@ -124,6 +124,8 @@ export class MemStorage implements IStorage {
       id,
       originalFileUrl: null,
       translatedFileUrl: null,
+      originalS3Key: insertTranslation.originalS3Key || null,
+      translatedS3Key: null,
       status: "pending",
       progress: 0,
       createdAt: now,
