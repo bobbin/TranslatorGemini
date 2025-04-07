@@ -6,7 +6,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
 import { useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
-import { UploadCloud } from "lucide-react";
+import { UploadCloud, BookOpen, File, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Form,
@@ -157,10 +157,11 @@ const UploadTranslation: FC<UploadTranslationProps> = ({ onTranslationCreated })
         </CardDescription>
       </CardHeader>
       <CardContent>
+{!file ? (
         <div
           className={`max-w-lg flex justify-center px-6 pt-5 pb-6 border-2 border-dashed rounded-md ${
             isDragging ? "border-primary bg-primary/5" : "border-gray-300"
-          } ${file ? "border-green-300 bg-green-50" : ""}`}
+          }`}
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
           onDrop={handleDrop}
@@ -185,12 +186,40 @@ const UploadTranslation: FC<UploadTranslationProps> = ({ onTranslationCreated })
               <p className="pl-1">o arrastra y suelta</p>
             </div>
             <p className="text-xs text-gray-500">
-              {file
-                ? `Archivo seleccionado: ${file.name}`
-                : "EPUB o PDF hasta 20 MB"}
+              EPUB o PDF hasta 20 MB
             </p>
           </div>
         </div>
+      ) : (
+        <div className="max-w-lg border-2 border-green-300 bg-green-50 rounded-md px-6 py-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-3">
+              <div className="flex-shrink-0">
+                {file.name.endsWith('.epub') ? (
+                  <BookOpen className="h-8 w-8 text-green-500" />
+                ) : (
+                  <File className="h-8 w-8 text-green-500" />
+                )}
+              </div>
+              <div>
+                <p className="text-sm font-medium text-gray-900">{file.name}</p>
+                <p className="text-xs text-gray-500">
+                  {(file.size / 1024 / 1024).toFixed(2)} MB
+                </p>
+              </div>
+            </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              type="button"
+              onClick={() => setFile(null)}
+              className="text-gray-500 hover:text-red-500"
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+      )}
 
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 mt-6">

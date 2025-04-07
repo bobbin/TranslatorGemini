@@ -130,7 +130,7 @@ export function TranslationForm({ onTranslationCreated }: { onTranslationCreated
     },
   });
 
-  const handleFileSelected = (file: File) => {
+  const handleFileSelected = (file: File | null) => {
     setSelectedFile(file);
   };
 
@@ -158,6 +158,7 @@ export function TranslationForm({ onTranslationCreated }: { onTranslationCreated
           onFileSelected={handleFileSelected}
           uploading={isUploading}
           uploadProgress={uploadProgress}
+          selectedFile={selectedFile}
         />
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
