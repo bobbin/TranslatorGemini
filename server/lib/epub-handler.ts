@@ -17,6 +17,12 @@ interface ChapterContent {
   html: string; // Original HTML content
 }
 
+interface TranslatedChapter {
+  id: string;
+  title: string;
+  translatedText: string;
+}
+
 async function createTempDir(): Promise<string> {
   const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'epub-'));
   return tempDir;
@@ -48,7 +54,7 @@ export async function extractChapters(buffer: Buffer): Promise<ChapterContent[]>
     
     // Parse container.xml to find content.opf path
     await new Promise<void>((resolve, reject) => {
-      parseString(metaInfContainer, (err, result) => {
+      parseString(metaInfContainer, (err: any, result: any) => {
         if (err) {
           reject(err);
           return;
@@ -136,7 +142,7 @@ export async function extractChapters(buffer: Buffer): Promise<ChapterContent[]>
       
       if (tocContent) {
         await new Promise<void>((resolve, reject) => {
-          parseString(tocContent, (err, result) => {
+          parseString(tocContent, (err: any, result: any) => {
             if (err) {
               reject(err);
               return;
@@ -228,7 +234,7 @@ export async function extractChapters(buffer: Buffer): Promise<ChapterContent[]>
     
     console.log(`Extraídos ${chapters.length} capítulos del EPUB`);
     return chapters;
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error extracting EPUB:', error);
     throw new Error(`Failed to extract EPUB contents: ${error.message}`);
   } finally {
@@ -249,7 +255,7 @@ export async function extractChapters(buffer: Buffer): Promise<ChapterContent[]>
  */
 export async function reconstructEpub(
   originalEpubBuffer: Buffer, 
-  translatedChapters: { id: string; title: string; translatedText: string; }[]
+  translatedChapters: TranslatedChapter[]
 ): Promise<Buffer> {
   const tempDir = await createTempDir();
   const originalPath = path.join(tempDir, 'original.epub');
@@ -273,7 +279,7 @@ export async function reconstructEpub(
     
     // Parse container.xml to find content.opf path
     await new Promise<void>((resolve, reject) => {
-      parseString(metaInfContainer, (err, result) => {
+      parseString(metaInfContainer, (err: any, result: any) => {
         if (err) {
           reject(err);
           return;
@@ -397,7 +403,7 @@ export async function reconstructEpub(
     
     console.log('EPUB reconstructed successfully with translated content');
     return newEpubBuffer;
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error reconstructing EPUB:', error);
     throw new Error(`Failed to reconstruct EPUB with translations: ${error.message}`);
   } finally {
