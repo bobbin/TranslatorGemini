@@ -7,6 +7,10 @@ import LandingPage from "@/pages/landing";
 import Dashboard from "@/pages/dashboard";
 import Translations from "@/pages/translations";
 import AuthPage from "@/pages/auth-page";
+import ProfilePage from "@/pages/profile";
+import SettingsPage from "@/pages/settings";
+import HelpPage from "@/pages/help";
+import ProjectsPage from "@/pages/projects";
 import Navbar from "@/components/layout/navbar";
 import { AuthProvider } from "./hooks/use-auth";
 import { ProtectedRoute } from "./lib/protected-route";
@@ -16,10 +20,16 @@ function Router() {
   const [location] = useLocation();
   const { user } = useAuth();
   
-  // Don't show navbar on dashboard, auth page, or when not authenticated
-  const showNavbar = !location.startsWith("/dashboard") && 
-                    !location.startsWith("/auth") && 
-                    (location === "/" || user);
+  // Don't show navbar on dashboard and other protected routes, auth page, or when not authenticated
+  const showNavbar = 
+    !location.startsWith("/dashboard") && 
+    !location.startsWith("/translations") && 
+    !location.startsWith("/profile") && 
+    !location.startsWith("/settings") && 
+    !location.startsWith("/help") && 
+    !location.startsWith("/projects") && 
+    !location.startsWith("/auth") && 
+    (location === "/" || user);
 
   return (
     <>
@@ -29,6 +39,10 @@ function Router() {
         <Route path="/auth" component={AuthPage} />
         <ProtectedRoute path="/dashboard" component={Dashboard} />
         <ProtectedRoute path="/translations" component={Translations} />
+        <ProtectedRoute path="/profile" component={ProfilePage} />
+        <ProtectedRoute path="/settings" component={SettingsPage} />
+        <ProtectedRoute path="/help" component={HelpPage} />
+        <ProtectedRoute path="/projects" component={ProjectsPage} />
         {/* Fallback to 404 */}
         <Route component={NotFound} />
       </Switch>

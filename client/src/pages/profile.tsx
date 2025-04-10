@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import DashboardLayout from "@/components/layout/dashboard-layout";
+import DashboardLayout from "../components/layout/dashboard-layout";
 import { Loader2 } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 

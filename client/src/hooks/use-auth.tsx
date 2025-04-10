@@ -6,7 +6,12 @@ interface User {
   id: number;
   username: string;
   email: string;
+  fullName?: string;
   plan: string;
+  stripeCustomerId?: string | null;
+  stripeSubscriptionId?: string | null;
+  createdAt?: Date | string;
+  updatedAt?: Date | string;
 }
 
 interface AuthContextType {

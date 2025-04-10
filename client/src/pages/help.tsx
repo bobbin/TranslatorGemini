@@ -1,4 +1,4 @@
-import DashboardLayout from "@/components/layout/dashboard-layout";
+import DashboardLayout from "../components/layout/dashboard-layout";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
