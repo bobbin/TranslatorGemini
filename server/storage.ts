@@ -232,10 +232,10 @@ export class DatabaseStorage implements IStorage {
     // Initialize PostgreSQL session store
     const PostgresSessionStore = connectPg(session);
     this.sessionStore = new PostgresSessionStore({
-      conObject: {
-        connectionString: process.env.DATABASE_URL,
-      },
+      conString: process.env.DATABASE_URL,
+      tableName: 'session',
       createTableIfMissing: true,
+      pruneSessionInterval: 60, // Prune expired sessions every minute
     });
   }
 

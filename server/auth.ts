@@ -34,14 +34,14 @@ export function setupAuth(app: Express) {
 
   const sessionSettings: session.SessionOptions = {
     secret: sessionSecret,
-    resave: false,
-    saveUninitialized: false,
+    resave: true,
+    saveUninitialized: true,
     store: storage.sessionStore,
     name: 'connect.sid',
     cookie: {
       maxAge: 1000 * 60 * 60 * 24 * 7, // 1 week
       httpOnly: true,
-      secure: false,
+      secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
       path: '/'
     }
@@ -75,6 +75,13 @@ export function setupAuth(app: Express) {
   passport.deserializeUser(async (id: number, done) => {
     try {
       console.log('Deserializing id:', id);
+      console.log('Type of id:', typeof id);
+      
+      if (typeof id !== 'number') {
+        console.log('Converting id to number');
+        id = Number(id);
+      }
+      
       const user = await storage.getUser(id);
       console.log('Deserialized user:', user);
       if (!user) {
