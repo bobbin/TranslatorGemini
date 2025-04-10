@@ -9,7 +9,7 @@ import os from 'os';
 import { extractChapters, reconstructEpub } from './lib/epub-handler';
 import { extractPages, reconstructPdf } from './lib/pdf-handler';
 import { translateText } from './lib/gemini-service';
-import { setupAuth } from './auth';
+import { setupAuth, ensureAuthenticated } from './auth';
 import { 
   uploadFileToS3, 
   generatePresignedUrl, 
@@ -51,24 +51,33 @@ declare global {
   }
 }
 
-// Authentication middleware
-function isAuthenticated(req: Request, res: Response, next: NextFunction) {
-  console.log('isAuthenticated check ->', {
-    session: req.session,
-    sessionID: req.sessionID,
-    user: req.user,
-    isAuthenticated: req.isAuthenticated()
-  });
-  
-  if (req.isAuthenticated()) {
-    return next();
-  }
-  res.status(401).json({ message: 'Unauthorized' });
-}
+// Authentication middleware ya importado en la parte superior del archivo
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Setup authentication routes
   setupAuth(app);
+  
+  // Aplicar middleware de autenticación a todas las rutas API
+  app.use('/api', (req, res, next) => {
+    if (req.path === '/languages' || req.path === '/file-types' || 
+        req.path === '/login' || req.path === '/register' || 
+        req.path === '/user') {
+      return next();
+    }
+    
+    // Para cualquier otra ruta API, verificamos que haya sesión activa
+    if (req.session && req.session.userId) {
+      // Añadir una función isAuthenticated para mantener compatibilidad
+      (req as any).isAuthenticated = () => true;
+      return next();
+    }
+    
+    console.log(`Bloqueando acceso a ${req.path} - Usuario no autenticado`);
+    console.log(`Session ID: ${req.sessionID}`);
+    console.log(`Session data: ${JSON.stringify(req.session)}`);
+    
+    return res.status(401).json({ message: 'Acceso no autorizado' });
+  });
   // Get languages
   app.get('/api/languages', (_req: Request, res: Response) => {
     res.json({ languages: LANGUAGES });
@@ -80,7 +89,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get all translations for a user
-  app.get('/api/translations', isAuthenticated, async (req: Request, res: Response) => {
+  app.get('/api/translations', ensureAuthenticated, async (req: Request, res: Response) => {
     try {
       const userId = req.user!.id;
       const translations = await storage.getUserTranslations(userId);
@@ -91,7 +100,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get recent translations for a user
-  app.get('/api/translations/recent', isAuthenticated, async (req: Request, res: Response) => {
+  app.get('/api/translations/recent', ensureAuthenticated, async (req: Request, res: Response) => {
     try {
       const userId = req.user!.id;
       const limit = req.query.limit ? parseInt(req.query.limit as string) : 5;
@@ -103,7 +112,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get a specific translation
-  app.get('/api/translations/:id', isAuthenticated, async (req: Request, res: Response) => {
+  app.get('/api/translations/:id', ensureAuthenticated, async (req: Request, res: Response) => {
     try {
       const id = parseInt(req.params.id);
       const translation = await storage.getTranslation(id);
@@ -124,7 +133,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Create a new translation
-  app.post('/api/translations', isAuthenticated, upload.single('file'), async (req: Request, res: Response) => {
+  app.post('/api/translations', ensureAuthenticated, upload.single('file'), async (req: Request, res: Response) => {
     try {
       // Verificar las credenciales de S3
       const s3Available = await verifyS3Credentials();
@@ -313,7 +322,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Update translation status
-  app.patch('/api/translations/:id', isAuthenticated, async (req: Request, res: Response) => {
+  app.patch('/api/translations/:id', ensureAuthenticated, async (req: Request, res: Response) => {
     try {
       const id = parseInt(req.params.id);
       const translation = await storage.getTranslation(id);
@@ -343,7 +352,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Test auth endpoint
-  app.get('/api/auth-test', isAuthenticated, (req: Request, res: Response) => {
+  app.get('/api/auth-test', ensureAuthenticated, (req: Request, res: Response) => {
     const { password, ...userWithoutPassword } = req.user!;
     res.json({
       message: 'Authentication successful',
@@ -352,7 +361,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Download a translated file (generate presigned URL)
-  app.get('/api/translations/:id/download', isAuthenticated, async (req: Request, res: Response) => {
+  app.get('/api/translations/:id/download', ensureAuthenticated, async (req: Request, res: Response) => {
     try {
       // Verificar las credenciales de S3
       const s3Available = await verifyS3Credentials();
