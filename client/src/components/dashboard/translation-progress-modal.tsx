@@ -11,7 +11,8 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { FileText, BookOpen, X, Languages, CheckCircle } from "lucide-react";
+import { FileText, BookOpen, X, Languages, CheckCircle, Clock } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 interface TranslationProgressModalProps {
   translationId: number | null;
@@ -29,20 +30,34 @@ export function TranslationProgressModal({
   // Query to get translation status with polling
   const { data: translation, isLoading } = useQuery<Translation>({
     queryKey: ['/api/translations', translationId],
-    enabled: isOpen && !!translationId,
+    enabled: isOpen && !!translationId && translationId !== -1,
     refetchInterval: (data) => {
       // Stop polling when translation is completed or failed
       if (data?.status === 'completed' || data?.status === 'failed') {
         return false;
       }
+      // Para procesamiento por lotes, reducimos la frecuencia de polling ya que las verificaciones
+      // en el servidor ocurren cada 2 minutos
+      if (data?.status === 'batch_processing') {
+        return 30000; // Check every 30 seconds
+      }
       return pollingInterval;
     },
+  });
+  
+  // Query específica para obtener información del estado del lote si estamos en modo batch_processing
+  const { data: batchStatus } = useQuery({
+    queryKey: ['/api/translations', translationId, 'batch-status'],
+    enabled: isOpen && !!translationId && translation?.status === 'batch_processing',
+    refetchInterval: 30000, // Consultar cada 30 segundos
   });
 
   useEffect(() => {
     // When translation completes, slow down polling
     if (translation?.status === 'completed' || translation?.status === 'failed') {
       setPollingInterval(false as any);
+    } else if (translation?.status === 'batch_processing') {
+      setPollingInterval(30000);
     } else {
       setPollingInterval(1000);
     }
@@ -84,7 +99,7 @@ export function TranslationProgressModal({
     if (!translation) return 'pending';
     if (translation.status === 'failed') return 'failed';
 
-    const statusOrder: Translation['status'][] = ['pending', 'extracting', 'translating', 'reconstructing', 'completed'];
+    const statusOrder: Translation['status'][] = ['pending', 'extracting', 'translating', 'batch_processing', 'reconstructing', 'completed'];
     const currentStatusIndex = statusOrder.indexOf(translation.status);
 
     switch (step) {
@@ -96,6 +111,10 @@ export function TranslationProgressModal({
         }
         return 'pending';
       case 'translation':
+        // Tratar 'batch_processing' como parte de la fase de traducción
+        if (translation.status === 'batch_processing') {
+          return 'in-progress';
+        }
         if (currentStatusIndex >= statusOrder.indexOf('translating')) {
           return currentStatusIndex > statusOrder.indexOf('translating') ? 'completed' : 'in-progress';
         }
@@ -128,12 +147,21 @@ export function TranslationProgressModal({
          // Could be refined if backend provided more granular progress for extraction
         return 50; 
       case 'translation':
-         // Use the detailed progress calculation
-        if (translation.status === 'translating') {
+        // Use the detailed progress calculation
+        if (translation.status === 'translating' || translation.status === 'batch_processing') {
+          // Para procesamiento por lotes, usamos directamente el valor de progress
+          // ya que se actualiza periódicamente desde el backend durante la verificación de estado
+          if (translation.status === 'batch_processing') {
+            // El progreso se escala entre 40-70% durante el procesamiento por lotes
+            const scaledProgress = (translation.progress - 40) * (100 / 30);
+            return Math.max(0, Math.min(100, scaledProgress)); // Limitamos entre 0-100
+          }
+          
+          // Para la traducción síncrona, calculamos basado en páginas
           if (!translation.totalPages || translation.totalPages === 0) return 50; // Default if pages unknown
           return Math.round(((translation.completedPages || 0) / translation.totalPages) * 100);
         }
-        return 0; // Should not happen if status is 'in-progress' but not 'translating'
+        return 0; // Should not happen if status is 'in-progress' but not 'translating' or 'batch_processing'
       case 'reconstruction':
         // Give some progress indication for reconstruction, maybe 50%?
         // Could be refined if backend provided more granular progress for reconstruction
@@ -244,7 +272,9 @@ export function TranslationProgressModal({
                     <span className="text-xs text-gray-500">
                       {getStepStatus('translation') === 'completed' ? 'Completed' : 
                        getStepStatus('translation') === 'in-progress' ? 
-                        `Translating... (${translation.completedPages || 0}/${translation.totalPages || '?'})` : 
+                        translation.status === 'batch_processing' ?
+                          'Batch processing... (checking every 2 min)' :
+                          `Translating... (${translation.completedPages || 0}/${translation.totalPages || '?'})` : 
                        getStepStatus('translation') === 'failed' ? 'Failed' : 'Waiting'}
                     </span>
                   </div>
@@ -273,6 +303,21 @@ export function TranslationProgressModal({
               <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-md">
                 <p className="text-sm text-red-600">Error: {translation.error}</p>
               </div>
+            )}
+            
+            {translation.status === 'batch_processing' && (
+              <Alert className="mt-4">
+                <Clock className="h-4 w-4" />
+                <AlertDescription>
+                  This translation is using batch processing, which is more cost-effective but takes longer.
+                  The system checks for completion every 2 minutes. You can close this window and come back later.
+                  {translation.lastChecked && (
+                    <div className="mt-1 text-xs text-gray-500">
+                      Last checked: {new Date(translation.lastChecked).toLocaleString()}
+                    </div>
+                  )}
+                </AlertDescription>
+              </Alert>
             )}
           </>
         ) : (
