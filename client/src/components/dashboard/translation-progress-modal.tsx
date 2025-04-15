@@ -58,10 +58,18 @@ export function TranslationProgressModal({
   // Define la interfaz para el estado del batch
   interface BatchStatus {
     status: string;
-    eta?: string;
     progress?: number;
-    completed?: boolean;
     error?: string;
+    batchStatus?: string;
+    createdAt?: string;
+    lastChecked?: string;
+    completedAt?: string;
+    chapterCount?: number;
+    translatedCount?: number;
+    sourceLanguage?: string;
+    targetLanguage?: string;
+    processingTimeMs?: number;
+    eta?: string;
   }
   
   // Query específica para obtener información del estado del lote si estamos en modo batch_processing
@@ -339,10 +347,12 @@ export function TranslationProgressModal({
                       <span className="font-mono text-gray-800">{translation.batchId || 'Not assigned yet'}</span>
                     </div>
                     
-                    {translation.metadata && (
+                    {translation.metadata && typeof translation.metadata === 'object' && (
                       <div className="flex justify-between text-xs">
                         <span className="text-gray-600">Retry Count:</span>
-                        <span className="font-mono text-gray-800">{(translation.metadata as any).retryCount || 0}</span>
+                        <span className="font-mono text-gray-800">
+                          {((translation.metadata as Record<string, any>).retryCount || 0).toString()}
+                        </span>
                       </div>
                     )}
                     
@@ -378,14 +388,47 @@ export function TranslationProgressModal({
                         </div>
                       )}
                       
+                      <div className="mt-2 grid grid-cols-2 gap-x-2 gap-y-1 text-xs">
+                        {batchStatus.chapterCount !== undefined && (
+                          <>
+                            <div className="text-gray-600">Chapters:</div>
+                            <div className="text-gray-800 font-medium">
+                              {batchStatus.translatedCount !== undefined ? 
+                                `${batchStatus.translatedCount}/${batchStatus.chapterCount}` : 
+                                batchStatus.chapterCount}
+                            </div>
+                          </>
+                        )}
+                        
+                        {batchStatus.processingTimeMs !== undefined && (
+                          <>
+                            <div className="text-gray-600">Processing time:</div>
+                            <div className="text-gray-800 font-medium">
+                              {Math.floor(batchStatus.processingTimeMs / 60000)} min
+                            </div>
+                          </>
+                        )}
+                        
+                        {batchStatus.createdAt && (
+                          <>
+                            <div className="text-gray-600">Started:</div>
+                            <div className="text-gray-800 font-mono text-[9px]">
+                              {new Date(batchStatus.createdAt).toLocaleString()}
+                            </div>
+                          </>
+                        )}
+                      </div>
+                      
                       {batchStatus.eta && (
-                        <div className="mt-1 text-xs text-gray-600">
+                        <div className="mt-2 flex items-center text-xs text-emerald-600 bg-emerald-50 p-1.5 rounded">
+                          <Clock className="h-3 w-3 mr-1" />
                           Estimated completion: {new Date(batchStatus.eta).toLocaleString()}
                         </div>
                       )}
                       
                       {batchStatus.error && (
-                        <div className="mt-1 text-xs text-red-600 bg-red-50 p-1 rounded">
+                        <div className="mt-1 text-xs text-red-600 bg-red-50 p-1.5 rounded">
+                          <AlertTriangle className="h-3 w-3 inline mr-1" />
                           Error: {batchStatus.error}
                         </div>
                       )}

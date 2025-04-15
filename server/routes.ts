@@ -450,11 +450,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const batchState = getBatchState(translation.batchId);
           if (batchState) {
             // Añadir información detallada del lote
-            Object.assign(response, {
+            const detailedInfo = {
               batchStatus: batchState.batchStatus,
-              batchProgress: batchState.batchStatus === 'completed' ? 100 : 
-                            (batchState.batchStatus === 'failed' ? 0 : 50) // Valor estimado para in_progress
-            });
+              status: batchState.batchStatus,  // Para la interfaz de usuario
+              progress: batchState.progress || 0,  // Usar el progreso real calculado en openai-batch.ts
+              createdAt: batchState.createdAt,
+              lastChecked: batchState.lastChecked,
+              completedAt: batchState.completedAt,
+              chapterCount: batchState.chapters?.length || 0,
+              translatedCount: batchState.translatedChapters?.length || 0,
+              sourceLanguage: batchState.sourceLanguage,
+              targetLanguage: batchState.targetLanguage,
+              processingTimeMs: batchState.lastChecked 
+                ? (batchState.lastChecked.getTime() - batchState.createdAt.getTime()) 
+                : 0,
+              eta: batchState.progress && batchState.progress < 100 && batchState.progress > 0
+                ? new Date(Date.now() + (
+                    // Estimar tiempo restante basado en el progreso actual y tiempo transcurrido
+                    (batchState.lastChecked.getTime() - batchState.createdAt.getTime()) * 
+                    (100 - batchState.progress) / batchState.progress
+                  ))
+                : undefined
+            };
+            
+            Object.assign(response, detailedInfo);
             
             // Añadir detalles de error si existen
             if (batchState.error) {
