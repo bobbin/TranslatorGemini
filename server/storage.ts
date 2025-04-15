@@ -17,19 +17,20 @@ export interface IStorage {
   updateUser(id: number, user: Partial<User>): Promise<User | undefined>;
   updateStripeCustomerId(id: number, stripeCustomerId: string): Promise<User | undefined>;
   updateUserStripeInfo(id: number, info: { stripeCustomerId: string, stripeSubscriptionId: string }): Promise<User | undefined>;
-  
+
   // Translation methods
   createTranslation(translation: InsertTranslation): Promise<Translation>;
   getTranslation(id: number): Promise<Translation | undefined>;
   updateTranslation(id: number, update: UpdateTranslation): Promise<Translation | undefined>;
   getUserTranslations(userId: number): Promise<Translation[]>;
   getRecentTranslations(userId: number, limit?: number): Promise<Translation[]>;
+  getTranslationsByStatus(status: string): Promise<Translation[]>;
 
   // User Settings methods
   getUserSettings(userId: number): Promise<UserSettings | undefined>;
   createUserSettings(settings: InsertUserSettings): Promise<UserSettings>;
   updateUserSettings(userId: number, settings: UpdateUserSettings): Promise<UserSettings | undefined>;
-  
+
   // Session store
   sessionStore: session.Store;
 }
@@ -50,12 +51,12 @@ export class MemStorage implements IStorage {
     this.userIdCounter = 1;
     this.translationIdCounter = 1;
     this.userSettingsIdCounter = 1;
-    
+
     const MemoryStore = require('memorystore')(session);
     this.sessionStore = new MemoryStore({
       checkPeriod: 86400000,
     });
-    
+
     // Create a demo user
     this.createUser({
       username: "demo",
@@ -92,11 +93,11 @@ export class MemStorage implements IStorage {
     this.users.set(id, user);
     return user;
   }
-  
+
   async updateUser(id: number, userData: Partial<User>): Promise<User | undefined> {
     const user = this.users.get(id);
     if (!user) return undefined;
-    
+
     const updatedUser = { 
       ...user, 
       ...userData, 
@@ -113,12 +114,12 @@ export class MemStorage implements IStorage {
   async updateUserStripeInfo(id: number, info: { stripeCustomerId: string, stripeSubscriptionId: string }): Promise<User | undefined> {
     return this.updateUser(id, info);
   }
-  
+
   // Translation methods
   async createTranslation(insertTranslation: InsertTranslation): Promise<Translation> {
     const id = this.translationIdCounter++;
     const now = new Date();
-    
+
     const translation: Translation = {
       ...insertTranslation,
       id,
@@ -136,56 +137,60 @@ export class MemStorage implements IStorage {
       completedPages: 0,
       customPrompt: insertTranslation.customPrompt || null
     };
-    
+
     this.translations.set(id, translation);
     return translation;
   }
-  
+
   async getTranslation(id: number): Promise<Translation | undefined> {
     return this.translations.get(id);
   }
-  
+
   async updateTranslation(id: number, update: UpdateTranslation): Promise<Translation | undefined> {
     const translation = this.translations.get(id);
-    
+
     if (!translation) {
       return undefined;
     }
-    
+
     const updatedTranslation: Translation = {
       ...translation,
       ...update,
       updatedAt: new Date()
     };
-    
+
     this.translations.set(id, updatedTranslation);
     return updatedTranslation;
   }
-  
+
   async getUserTranslations(userId: number): Promise<Translation[]> {
     return Array.from(this.translations.values())
       .filter(translation => translation.userId === userId)
       .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
   }
-  
+
   async getRecentTranslations(userId: number, limit = 5): Promise<Translation[]> {
     return Array.from(this.translations.values())
       .filter(translation => translation.userId === userId)
       .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
       .slice(0, limit);
   }
-  
+
+  async getTranslationsByStatus(status: string): Promise<Translation[]> {
+    return Array.from(this.translations.values()).filter(t => t.status === status);
+  }
+
   // User settings methods
   async getUserSettings(userId: number): Promise<UserSettings | undefined> {
     return Array.from(this.userSettings.values()).find(
       (settings) => settings.userId === userId
     );
   }
-  
+
   async createUserSettings(settings: InsertUserSettings): Promise<UserSettings> {
     const id = this.userSettingsIdCounter++;
     const now = new Date();
-    
+
     const userSettings: UserSettings = {
       ...settings,
       id,
@@ -196,26 +201,26 @@ export class MemStorage implements IStorage {
       createdAt: now,
       updatedAt: now
     };
-    
+
     this.userSettings.set(id, userSettings);
     return userSettings;
   }
-  
+
   async updateUserSettings(userId: number, update: UpdateUserSettings): Promise<UserSettings | undefined> {
     const settings = Array.from(this.userSettings.values()).find(
       (settings) => settings.userId === userId
     );
-    
+
     if (!settings) {
       return undefined;
     }
-    
+
     const updatedSettings: UserSettings = {
       ...settings,
       ...update,
       updatedAt: new Date()
     };
-    
+
     this.userSettings.set(settings.id, updatedSettings);
     return updatedSettings;
   }
@@ -314,6 +319,12 @@ export class DatabaseStorage implements IStorage {
       .where(eq(translations.userId, userId))
       .orderBy(desc(translations.createdAt))
       .limit(limit);
+  }
+
+  async getTranslationsByStatus(status: string): Promise<Translation[]> {
+    return await db.query.translations.findMany({
+      where: eq(translations.status, status)
+    });
   }
 
   // User settings methods

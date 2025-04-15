@@ -1,8 +1,40 @@
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
+import { storage } from "./storage";
+import { startBatchProcessing } from "./lib/batch-processor";
 
 const app = express();
+
+// Verificar traducciones pendientes cada 5 minutos
+const CHECK_PENDING_INTERVAL = 5 * 60 * 1000; // 5 minutos en milisegundos
+
+async function checkPendingTranslations() {
+  try {
+    const pendingTranslations = await storage.getTranslationsByStatus('batch_processing');
+    
+    for (const translation of pendingTranslations) {
+      // Solo reintentar si han pasado más de 2 minutos desde la última verificación
+      const lastChecked = translation.lastChecked ? new Date(translation.lastChecked) : null;
+      const twoMinutesAgo = new Date(Date.now() - 2 * 60 * 1000);
+      
+      if (!lastChecked || lastChecked < twoMinutesAgo) {
+        if (translation.batchId) {
+          log(`Restarting batch processing for translation ${translation.id}`);
+          startBatchProcessing(translation.id, translation.batchId);
+        }
+      }
+    }
+  } catch (error) {
+    log(`Error checking pending translations: ${error}`, 'error');
+  }
+}
+
+// Iniciar el proceso de verificación periódica
+setInterval(checkPendingTranslations, CHECK_PENDING_INTERVAL);
+
+// Ejecutar una verificación inicial al arrancar
+checkPendingTranslations();
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
