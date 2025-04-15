@@ -19,8 +19,8 @@ interface ChapterContent {
 
 interface TranslatedChapter {
   id: string;
-  title: string;
-  translatedHtml: string; // Changed from translatedText
+  title?: string; // Opcional ya que viene en el HTML
+  translatedHtml: string;
 }
 
 async function createTempDir(): Promise<string> {

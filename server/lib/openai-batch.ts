@@ -278,19 +278,12 @@ export async function checkBatchStatus(batchId: string): Promise<BatchTranslatio
               continue;
             }
             
-            // Find the original chapter
-            const originalChapter = batchState.chapters.find(c => c.id === result.custom_id);
-            if (!originalChapter) {
-              console.warn(`[Batch API] Cannot find original chapter for ID: ${result.custom_id}`);
-              continue;
-            }
-            
             // Extract the translation from the response
             const translatedContent = result.response.body.choices[0]?.message?.content;
             if (translatedContent) {
               translatedChapters.push({
                 id: result.custom_id,
-                title: originalChapter.title,
+                title: "", // El título se puede extraer del HTML si es necesario
                 translatedHtml: translatedContent.trim()
               });
             }
