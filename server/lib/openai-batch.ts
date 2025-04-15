@@ -111,12 +111,12 @@ export async function createBatchTranslation(
     const targetLang = languageMapping[targetLanguage] || targetLanguage;
     const styleInstruction = stylePrompts[style] || stylePrompts.standard;
     
-    // Create a unique batch ID
-    const batchId = uuidv4();
+    // Create a temporary directory for batch files
     const tempDir = await createTempDir();
-    const batchFilePath = path.join(tempDir, `batch-${batchId}.jsonl`);
+    const tempBatchId = uuidv4(); // Solo para el nombre del archivo temporal
+    const batchFilePath = path.join(tempDir, `batch-${tempBatchId}.jsonl`);
     
-    console.log(`[Batch API] Creating batch translation request with ID: ${batchId}`);
+    console.log(`[Batch API] Creating batch translation request`);
     console.log(`[Batch API] Will translate ${chapters.length} chapters from ${sourceLang} to ${targetLang}`);
     
     // Prepare system prompt
@@ -186,7 +186,9 @@ export async function createBatchTranslation(
       error: null
     };
     
-    batchTranslations.set(batchId, batchState);
+    // Usamos el ID de OpenAI como clave en el mapa
+    batchTranslations.set(batch.id, batchState);
+    console.log(`[Batch API] Stored batch state with OpenAI batch ID: ${batch.id}`);
     
     // Clean up temp dir
     try {

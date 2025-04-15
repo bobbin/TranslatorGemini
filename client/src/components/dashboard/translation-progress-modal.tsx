@@ -28,26 +28,47 @@ export function TranslationProgressModal({
   const [pollingInterval, setPollingInterval] = useState(1000);
 
   // Query to get translation status with polling
-  const { data: translation, isLoading } = useQuery<Translation>({
+  const translationQuery = useQuery<Translation>({
     queryKey: ['/api/translations', translationId],
     enabled: isOpen && !!translationId && translationId !== -1,
-    refetchInterval: (data) => {
-      // Stop polling when translation is completed or failed
-      const translationData = data as Translation | undefined;
-      if (translationData?.status === 'completed' || translationData?.status === 'failed') {
-        return false;
+    refetchInterval: (query) => {
+      // Do a safe check to see if we have data first
+      if (!query || typeof query !== 'object') return pollingInterval;
+      
+      try {
+        const translationData = query as Translation;
+        
+        // Stop polling when translation is completed or failed
+        if (translationData.status === 'completed' || translationData.status === 'failed') {
+          return false;
+        }
+        // Para procesamiento por lotes, reducimos la frecuencia de polling ya que las verificaciones
+        // en el servidor ocurren cada 2 minutos
+        if (translationData.status === 'batch_processing') {
+          return 30000; // Check every 30 seconds
+        }
+        return pollingInterval;
+      } catch (error) {
+        console.error('Error checking translation status:', error);
+        return pollingInterval;
       }
-      // Para procesamiento por lotes, reducimos la frecuencia de polling ya que las verificaciones
-      // en el servidor ocurren cada 2 minutos
-      if (translationData?.status === 'batch_processing') {
-        return 30000; // Check every 30 seconds
-      }
-      return pollingInterval;
     },
   });
   
+  const translation = translationQuery.data;
+  const isLoading = translationQuery.isLoading;
+  
+  // Define la interfaz para el estado del batch
+  interface BatchStatus {
+    status: string;
+    eta?: string;
+    progress?: number;
+    completed?: boolean;
+    error?: string;
+  }
+  
   // Query específica para obtener información del estado del lote si estamos en modo batch_processing
-  const { data: batchStatus } = useQuery({
+  const { data: batchStatus } = useQuery<BatchStatus>({
     queryKey: ['/api/translations', translationId, 'batch-status'],
     enabled: isOpen && !!translationId && translation?.status === 'batch_processing',
     refetchInterval: 30000, // Consultar cada 30 segundos

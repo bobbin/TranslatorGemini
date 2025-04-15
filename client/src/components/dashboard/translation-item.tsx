@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Book, FileText, MoreVertical, Download, RefreshCw } from 'lucide-react';
-import { Translation, TranslationStatus } from '@shared/schema';
+import { Translation, TranslationStatus, TRANSLATION_STATUS } from '@shared/schema';
 import { formatDistanceToNow } from 'date-fns';
 import { Progress } from "@/components/ui/progress";
 import { 
@@ -88,19 +88,19 @@ export function TranslationItem({ translation, onViewDetails, onRetry }: Transla
         <div className="flex items-center">
           {isInProgress ? (
             <div className="flex flex-col">
-              <span className={`px-2 py-1 text-xs rounded-full ${getStatusBadgeClass(translation.status)} text-white mb-1`}>
-                {getStatusLabel(translation.status)}
+              <span className={`px-2 py-1 text-xs rounded-full ${getStatusBadgeClass(translation.status as TranslationStatus)} text-white mb-1`}>
+                {getStatusLabel(translation.status as TranslationStatus)}
               </span>
               <div className="w-36 bg-gray-200 rounded-full h-2">
                 <div 
-                  className={`${getStatusBadgeClass(translation.status)} h-2 rounded-full`} 
+                  className={`${getStatusBadgeClass(translation.status as TranslationStatus)} h-2 rounded-full`} 
                   style={{ width: `${translation.progress}%` }}
                 ></div>
               </div>
             </div>
           ) : (
-            <span className={`px-2 py-1 text-xs rounded-full ${getStatusBadgeClass(translation.status)} text-white`}>
-              {getStatusLabel(translation.status)}
+            <span className={`px-2 py-1 text-xs rounded-full ${getStatusBadgeClass(translation.status as TranslationStatus)} text-white`}>
+              {getStatusLabel(translation.status as TranslationStatus)}
             </span>
           )}
           

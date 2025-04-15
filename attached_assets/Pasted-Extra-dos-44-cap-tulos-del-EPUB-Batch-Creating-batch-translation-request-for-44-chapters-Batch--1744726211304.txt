@@ -1,0 +1,24 @@
+Extraídos 44 capítulos del EPUB
+[Batch] Creating batch translation request for 44 chapters
+[Batch API] Creating batch translation request with ID: f2679ce8-ed9c-4126-8d0e-a5062156e177
+[Batch API] Will translate 44 chapters from English to Spanish
+[Batch API] Uploading batch file to OpenAI
+[Batch API] Batch file uploaded with ID: file-CCAEQszY2TeCaX6g5EbSTf
+[Batch API] Creating batch job
+[Batch API] Batch job created with ID: batch_67fe5e0b5864819090a239ea9aa57ac5
+[Batch] Batch translation request created with ID: batch_67fe5e0b5864819090a239ea9aa57ac5
+[Batch Processor] Starting batch processing for translation 16 with batch ID batch_67fe5e0b5864819090a239ea9aa57ac5
+1:24:27 PM [express] POST /api/translations 201 in 7220ms :: {"id":16,"userId":2,"fileName":"kaijupr…
+[Batch Processor] Translation 16 updated with batch ID batch_67fe5e0b5864819090a239ea9aa57ac5
+1:24:27 PM [express] GET /api/translations/recent 200 in 247ms :: [{"id":16,"userId":2,"fileName":"k…
+1:24:28 PM [express] GET /api/translations 200 in 262ms :: [{"id":16,"userId":2,"fileName":"kaijupre…
+1:24:45 PM [express] GET /api/translations 304 in 525ms :: [{"id":16,"userId":2,"fileName":"kaijupre…
+1:24:47 PM [express] GET /api/translations 304 in 248ms :: [{"id":16,"userId":2,"fileName":"kaijupre…
+[Batch Processor] Checking batch progress for translation 16
+[Batch API] Error checking batch status: Error: Batch translation with ID batch_67fe5e0b5864819090a239ea9aa57ac5 not found
+    at checkBatchStatus (/home/runner/workspace/server/lib/openai-batch.ts:214:13)
+    at checkBatchProgress (/home/runner/workspace/server/lib/batch-processor.ts:71:30)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+[Batch Processor] Error checking batch progress for translation 16: Error: Failed to check batch translation status: Batch translation with ID batch_67fe5e0b5864819090a239ea9aa57ac5 not found
+    at checkBatchStatus (/home/runner/workspace/server/lib/openai-batch.ts:316:11)
+    at checkBatchProgress (/home/runner/workspace/server/lib/batch-processor.ts:71:30)
