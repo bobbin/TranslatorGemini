@@ -33,12 +33,13 @@ export function TranslationProgressModal({
     enabled: isOpen && !!translationId && translationId !== -1,
     refetchInterval: (data) => {
       // Stop polling when translation is completed or failed
-      if (data?.status === 'completed' || data?.status === 'failed') {
+      const translationData = data as Translation | undefined;
+      if (translationData?.status === 'completed' || translationData?.status === 'failed') {
         return false;
       }
       // Para procesamiento por lotes, reducimos la frecuencia de polling ya que las verificaciones
       // en el servidor ocurren cada 2 minutos
-      if (data?.status === 'batch_processing') {
+      if (translationData?.status === 'batch_processing') {
         return 30000; // Check every 30 seconds
       }
       return pollingInterval;
@@ -314,6 +315,16 @@ export function TranslationProgressModal({
                   {translation.lastChecked && (
                     <div className="mt-1 text-xs text-gray-500">
                       Last checked: {new Date(translation.lastChecked).toLocaleString()}
+                    </div>
+                  )}
+                  {batchStatus && (
+                    <div className="mt-2 text-sm">
+                      <span className="font-medium">Batch Status:</span> {batchStatus.status}
+                      {batchStatus.eta && (
+                        <div className="text-xs text-gray-500">
+                          Estimated completion: {new Date(batchStatus.eta).toLocaleString()}
+                        </div>
+                      )}
                     </div>
                   )}
                 </AlertDescription>

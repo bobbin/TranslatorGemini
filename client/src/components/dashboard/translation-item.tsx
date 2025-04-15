@@ -17,13 +17,14 @@ interface TranslationItemProps {
 }
 
 export function TranslationItem({ translation, onViewDetails, onRetry }: TranslationItemProps) {
-  const getStatusBadgeClass = (status: TranslationStatus) => {
+  const getStatusBadgeClass = (status: TranslationStatus): string => {
     switch (status) {
       case 'completed':
         return 'bg-green-500';
       case 'pending':
       case 'extracting':
       case 'translating':
+      case 'batch_processing':
       case 'reconstructing':
         return 'bg-amber-500';
       case 'failed':
@@ -33,7 +34,7 @@ export function TranslationItem({ translation, onViewDetails, onRetry }: Transla
     }
   };
 
-  const getStatusLabel = (status: TranslationStatus) => {
+  const getStatusLabel = (status: TranslationStatus): string => {
     switch (status) {
       case 'completed':
         return 'Completed';
@@ -43,12 +44,14 @@ export function TranslationItem({ translation, onViewDetails, onRetry }: Transla
         return 'Extracting';
       case 'translating':
         return 'Translating';
+      case 'batch_processing':
+        return 'Batch Processing';
       case 'reconstructing':
         return 'Reconstructing';
       case 'failed':
         return 'Failed';
       default:
-        return status;
+        return String(status);
     }
   };
 
@@ -59,7 +62,7 @@ export function TranslationItem({ translation, onViewDetails, onRetry }: Transla
     return <FileText className="text-gray-400" />;
   };
 
-  const isInProgress = ['pending', 'extracting', 'translating', 'reconstructing'].includes(translation.status);
+  const isInProgress = ['pending', 'extracting', 'translating', 'batch_processing', 'reconstructing'].includes(translation.status);
 
   return (
     <div className="bg-gray-50 p-4 rounded-lg mb-4">
