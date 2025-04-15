@@ -27,8 +27,11 @@ export function startBatchProcessing(translationId: number, batchId: string): vo
   }).then(() => {
     console.log(`[Batch Processor] Translation ${translationId} updated with batch ID ${batchId}`);
     
-    // Programar la primera verificación
-    const timerId = setTimeout(() => checkBatchProgress(translationId), CHECK_INTERVAL);
+    // Ejecutar la primera verificación inmediatamente
+    checkBatchProgress(translationId);
+    
+    // Programar las siguientes verificaciones
+    const timerId = setInterval(() => checkBatchProgress(translationId), CHECK_INTERVAL);
     activeTimers.set(translationId, timerId);
   });
 }
@@ -205,7 +208,7 @@ async function checkBatchProgress(translationId: number): Promise<void> {
 function stopBatchProcessing(translationId: number): void {
   const timerId = activeTimers.get(translationId);
   if (timerId) {
-    clearTimeout(timerId);
+    clearInterval(timerId);
     activeTimers.delete(translationId);
     console.log(`[Batch Processor] Stopped batch processing for translation ${translationId}`);
   }
