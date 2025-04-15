@@ -1,0 +1,110 @@
+Batch API] checkBatchStatus called for batch ID: batch_67fe6d72e18c8190a667304f8c735e8e
+[Batch API] Batch state not found in memory, fetching from OpenAI API
+[Batch API] Checking status of batch: batch_67fe6d72e18c8190a667304f8c735e8e
+[Batch API] Batch status: completed
+[Batch API] Batch completed, retrieving results
+[Batch API] Cannot find original chapter for ID: chapter-1
+[Batch API] Cannot find original chapter for ID: chapter-2
+[Batch API] Cannot find original chapter for ID: chapter-3
+[Batch API] Cannot find original chapter for ID: chapter-4
+[Batch API] Cannot find original chapter for ID: chapter-5
+[Batch API] Cannot find original chapter for ID: chapter-6
+[Batch API] Cannot find original chapter for ID: chapter-7
+[Batch API] Cannot find original chapter for ID: chapter-8
+[Batch API] Cannot find original chapter for ID: chapter-9
+[Batch API] Cannot find original chapter for ID: chapter-10
+[Batch API] Cannot find original chapter for ID: chapter-11
+[Batch API] Cannot find original chapter for ID: chapter-12
+[Batch API] Cannot find original chapter for ID: chapter-13
+[Batch API] Cannot find original chapter for ID: chapter-14
+[Batch API] Cannot find original chapter for ID: chapter-15
+[Batch API] Cannot find original chapter for ID: chapter-16
+[Batch API] Cannot find original chapter for ID: chapter-17
+[Batch API] Cannot find original chapter for ID: chapter-18
+[Batch API] Cannot find original chapter for ID: chapter-19
+[Batch API] Cannot find original chapter for ID: chapter-20
+[Batch API] Cannot find original chapter for ID: chapter-21
+[Batch API] Cannot find original chapter for ID: chapter-22
+[Batch API] Cannot find original chapter for ID: chapter-23
+[Batch API] Cannot find original chapter for ID: chapter-24
+[Batch API] Cannot find original chapter for ID: chapter-25
+[Batch API] Cannot find original chapter for ID: chapter-26
+[Batch API] Cannot find original chapter for ID: chapter-27
+[Batch API] Cannot find original chapter for ID: chapter-28
+[Batch API] Cannot find original chapter for ID: chapter-29
+[Batch API] Cannot find original chapter for ID: chapter-30
+[Batch API] Cannot find original chapter for ID: chapter-31
+[Batch API] Retrieved 0 translated chapters
+[Batch API] Updated batch state for batch_67fe6d72e18c8190a667304f8c735e8e to status: completed
+[Batch API] checkBatchStatus completed in 1327ms for batch ID: batch_67fe6d72e18c8190a667304f8c735e8e
+[Batch Processor] Batch batch_67fe6d72e18c8190a667304f8c735e8e status: completed
+[Batch Processor] Batch batch_67fe6d72e18c8190a667304f8c735e8e completed! Processing results...
+[Batch Processor] Processing batch results for translation 17
+[Batch Processor] Error processing batch results for translation 17: Error: Batch batch_67fe6d72e18c8190a667304f8c735e8e returned 0 translated chapters
+    at processBatchResults (/home/runner/workspace/server/lib/batch-processor.ts:237:13)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async checkBatchProgress (/home/runner/workspace/server/lib/batch-processor.ts:84:7)
+[Batch Processor] Successfully processed batch results for translation 17
+[Batch Processor] Stopped batch processing for translation 17
+[Batch Processor] Checking batch progress for translation 16
+[Batch API] checkBatchStatus called for batch ID: batch_67fe5e0b5864819090a239ea9aa57ac5
+[Batch API] Batch state not found in memory, fetching from OpenAI API
+[Batch API] Checking status of batch: batch_67fe5e0b5864819090a239ea9aa57ac5
+[Batch API] Batch status: completed
+[Batch API] Batch completed, retrieving results
+[Batch API] Cannot find original chapter for ID: chapter-1
+[Batch API] Cannot find original chapter for ID: chapter-2
+[Batch API] Cannot find original chapter for ID: chapter-3
+[Batch API] Cannot find original chapter for ID: chapter-4
+[Batch API] Cannot find original chapter for ID: chapter-5
+[Batch API] Cannot find original chapter for ID: chapter-6
+[Batch API] Cannot find original chapter for ID: chapter-7
+[Batch API] Cannot find original chapter for ID: chapter-8
+[Batch API] Cannot find original chapter for ID: chapter-9
+[Batch API] Cannot find original chapter for ID: chapter-10
+[Batch API] Cannot find original chapter for ID: chapter-11
+[Batch API] Cannot find original chapter for ID: chapter-12
+[Batch API] Cannot find original chapter for ID: chapter-13
+[Batch API] Cannot find original chapter for ID: chapter-14
+[Batch API] Cannot find original chapter for ID: chapter-15
+[Batch API] Cannot find original chapter for ID: chapter-16
+[Batch API] Cannot find original chapter for ID: chapter-17
+[Batch API] Cannot find original chapter for ID: chapter-18
+[Batch API] Cannot find original chapter for ID: chapter-19
+[Batch API] Cannot find original chapter for ID: chapter-20
+[Batch API] Cannot find original chapter for ID: chapter-21
+[Batch API] Cannot find original chapter for ID: chapter-22
+[Batch API] Cannot find original chapter for ID: chapter-23
+[Batch API] Cannot find original chapter for ID: chapter-24
+[Batch API] Cannot find original chapter for ID: chapter-25
+[Batch API] Cannot find original chapter for ID: chapter-26
+[Batch API] Cannot find original chapter for ID: chapter-27
+[Batch API] Cannot find original chapter for ID: chapter-28
+[Batch API] Cannot find original chapter for ID: chapter-29
+[Batch API] Cannot find original chapter for ID: chapter-30
+[Batch API] Cannot find original chapter for ID: chapter-31
+[Batch API] Cannot find original chapter for ID: chapter-32
+[Batch API] Cannot find original chapter for ID: chapter-33
+[Batch API] Cannot find original chapter for ID: chapter-34
+[Batch API] Cannot find original chapter for ID: chapter-35
+[Batch API] Cannot find original chapter for ID: chapter-36
+[Batch API] Cannot find original chapter for ID: chapter-37
+[Batch API] Cannot find original chapter for ID: chapter-38
+[Batch API] Cannot find original chapter for ID: chapter-39
+[Batch API] Cannot find original chapter for ID: chapter-40
+[Batch API] Cannot find original chapter for ID: chapter-41
+[Batch API] Cannot find original chapter for ID: chapter-42
+[Batch API] Cannot find original chapter for ID: chapter-43
+[Batch API] Cannot find original chapter for ID: chapter-44
+[Batch API] Retrieved 0 translated chapters
+[Batch API] Updated batch state for batch_67fe5e0b5864819090a239ea9aa57ac5 to status: completed
+[Batch API] checkBatchStatus completed in 840ms for batch ID: batch_67fe5e0b5864819090a239ea9aa57ac5
+[Batch Processor] Batch batch_67fe5e0b5864819090a239ea9aa57ac5 status: completed
+[Batch Processor] Batch batch_67fe5e0b5864819090a239ea9aa57ac5 completed! Processing results...
+[Batch Processor] Processing batch results for translation 16
+[Batch Processor] Error processing batch results for translation 16: Error: Batch batch_67fe5e0b5864819090a239ea9aa57ac5 returned 0 translated chapters
+    at processBatchResults (/home/runner/workspace/server/lib/batch-processor.ts:237:13)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async checkBatchProgress (/home/runner/workspace/server/lib/batch-processor.ts:84:7)
+[Batch Processor] Successfully processed batch results for translation 16
+[Batch Processor] Stopped batch processing for translation 16
