@@ -97,19 +97,22 @@ async function checkBatchProgress(translationId: number): Promise<void> {
       // Calcular el progreso basado en la información del lote
       let progress = 40; // Base progress cuando comienza el procesamiento por lotes
       
-      // Si tenemos información de progreso del lote, usarla para calcular un valor más preciso
-      if (typeof batchState.progress === 'number') {
+      // Si tenemos información de progreso del lote desde openai-batch.ts, usarla
+      if (batchState && typeof batchState.progress === 'number') {
         // Escalar el progreso entre 40-70% durante la fase de procesamiento por lotes
+        // El progreso de la API es de 0-100%, lo convertimos a nuestra escala
         progress = 40 + Math.floor(batchState.progress * 0.3);
+        console.log(`[Batch Processor] Using OpenAI reported progress: ${batchState.progress}%, scaled to: ${progress}%`);
       } else {
         // Si no hay progreso específico, usar el tiempo transcurrido como estimación
         const currentTime = new Date();
-        const startTime = translation.lastChecked || currentTime;
+        const startTime = translation.lastChecked || new Date(translation.createdAt);
         const minutesElapsed = Math.max(0, (currentTime.getTime() - startTime.getTime()) / 60000);
         
-        // Estimamos que el proceso toma aproximadamente 30 minutos, por lo que aumentamos 1% cada minuto
+        // Estimamos que el proceso toma aproximadamente 30 minutos, limitamos al 30% de progreso en nuestra escala
         const timeBasedProgress = Math.min(30, minutesElapsed);
         progress = 40 + Math.floor(timeBasedProgress);
+        console.log(`[Batch Processor] Using time-based progress estimate: ${progress}% (${minutesElapsed.toFixed(1)} minutes elapsed)`);
       }
       
       await storage.updateTranslation(translationId, {
@@ -132,9 +135,64 @@ async function checkBatchProgress(translationId: number): Promise<void> {
       console.error(`[Batch Processor] Error updating translation ${translationId} with error:`, storageError);
     }
     
-    // Programar la siguiente verificación (incluso si hay errores, seguimos intentando)
-    const timerId = setTimeout(() => checkBatchProgress(translationId), CHECK_INTERVAL);
-    activeTimers.set(translationId, timerId);
+    // Contador de reintentos
+    // Obtener la traducción actual de nuevo para acceder a sus metadatos
+    try {
+      const currentTranslation = await storage.getTranslation(translationId);
+      if (!currentTranslation) {
+        console.error(`[Batch Processor] Translation ${translationId} not found when attempting retry`);
+        return;
+      }
+      
+      // Usar los metadatos existentes o inicializar nuevos
+      const metadata = currentTranslation.metadata || {};
+      const retryCount = (metadata.retryCount || 0) + 1;
+      const maxRetries = 5; // Máximo número de reintentos
+      
+      if (retryCount <= maxRetries) {
+        console.log(`[Batch Processor] Retry attempt ${retryCount}/${maxRetries} for translation ${translationId}`);
+        
+        // Actualizar el contador de reintentos en los metadatos
+        await storage.updateTranslation(translationId, {
+          error: `Error checking batch status (attempt ${retryCount}): ${error.message}`,
+          metadata: { 
+            ...metadata,
+            retryCount,
+            lastError: error.message
+          }
+        });
+        
+        // Programar la siguiente verificación con un intervalo exponencial
+        const retryInterval = Math.min(CHECK_INTERVAL * Math.pow(2, retryCount - 1), 1800000); // Máximo 30 minutos
+        console.log(`[Batch Processor] Next retry in ${retryInterval/60000} minutes`);
+        
+        const nextTimerId = setTimeout(() => checkBatchProgress(translationId), retryInterval);
+        activeTimers.set(translationId, nextTimerId);
+      } else {
+        console.error(`[Batch Processor] Maximum retry attempts (${maxRetries}) reached for translation ${translationId}, marking as failed`);
+        
+        // Marcar como fallido después de muchos intentos
+        await storage.updateTranslation(translationId, {
+          status: 'failed',
+          error: `Multiple errors checking batch status: ${error.message}. Max retries reached.`,
+          metadata: { 
+            ...metadata,
+            retryCount,
+            lastError: error.message,
+            failedAt: new Date().toISOString()
+          }
+        });
+        
+        // Detener el procesamiento
+        stopBatchProcessing(translationId);
+      }
+    } catch (retryError) {
+      console.error(`[Batch Processor] Error handling retries for translation ${translationId}:`, retryError);
+      
+      // En caso de error manejando los reintentos, programar una verificación simple
+      const fallbackTimerId = setTimeout(() => checkBatchProgress(translationId), CHECK_INTERVAL);
+      activeTimers.set(translationId, fallbackTimerId);
+    }
   }
 }
 

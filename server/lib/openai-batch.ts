@@ -75,6 +75,7 @@ interface BatchTranslationState {
   style: string;
   chapters: ChapterForTranslation[];
   translatedChapters: TranslatedChapter[];
+  progress?: number; // Progreso estimado de 0 a 100
   lastChecked: Date;
   createdAt: Date;
   completedAt: Date | null;
@@ -296,7 +297,17 @@ export async function checkBatchStatus(batchId: string): Promise<BatchTranslatio
       batchState.batchStatus = 'in_progress';
       // Update progress info if available
       if (batch.request_counts) {
-        console.log(`[Batch API] Progress: ${batch.request_counts.completed}/${batch.request_counts.total} completed, ${batch.request_counts.failed} failed`);
+        const totalRequests = batch.request_counts.total || 0;
+        const completedRequests = batch.request_counts.completed || 0;
+        const failedRequests = batch.request_counts.failed || 0;
+        
+        // Calculate progress as a percentage (0-100)
+        if (totalRequests > 0) {
+          const progressPercentage = Math.floor((completedRequests / totalRequests) * 100);
+          batchState.progress = progressPercentage;
+        }
+        
+        console.log(`[Batch API] Progress: ${completedRequests}/${totalRequests} completed (${batchState.progress || 0}%), ${failedRequests} failed`);
       }
     }
     
