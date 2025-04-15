@@ -208,22 +208,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
 
         // Translate each chapter (in a real app, this would be done in chunks or with a job queue)
-        const translatedChapters = [];
+        const translatedChapters: { id: string; title: string; translatedHtml: string }[] = [];
         for (let i = 0; i < chapters.length; i++) {
           const chapter = chapters[i];
           console.log(`[Translation Loop] Starting translation for chapter ${i + 1}/${chapters.length} (ID: ${chapter.id})`);
-          const translatedText = await translateText(
-            chapter.text,
+          const translatedHtml = await translateText(
+            chapter.html,
             result.data.sourceLanguage,
             result.data.targetLanguage,
             result.data.customPrompt || undefined
           );
-          console.log(`[Translation Loop] Finished translation for chapter ${i + 1}/${chapters.length} (ID: ${chapter.id}). Translated text length: ${translatedText?.length ?? 0}`);
-          console.log(`[Translation Loop] Translated text: ${translatedText}`);
+          console.log(`[Translation Loop] Finished translation for chapter ${i + 1}/${chapters.length} (ID: ${chapter.id}). Translated HTML length: ${translatedHtml?.length ?? 0}`);
           translatedChapters.push({
             id: chapter.id,
             title: chapter.title,
-            translatedText
+            translatedHtml
           });
 
           // Update progress

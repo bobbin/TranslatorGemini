@@ -24,7 +24,7 @@ export function TranslationProgressModal({
   isOpen, 
   onClose 
 }: TranslationProgressModalProps) {
-  const [pollingInterval, setPollingInterval] = useState(2000);
+  const [pollingInterval, setPollingInterval] = useState(1000);
 
   // Query to get translation status with polling
   const { data: translation, isLoading } = useQuery<Translation>({
@@ -44,66 +44,100 @@ export function TranslationProgressModal({
     if (translation?.status === 'completed' || translation?.status === 'failed') {
       setPollingInterval(false as any);
     } else {
-      setPollingInterval(2000);
+      setPollingInterval(1000);
     }
   }, [translation?.status]);
 
-  if (!isOpen || !translationId) return null;
+  if (!isOpen) return null;
 
-  const getStepStatus = (step: string) => {
+  // Special loading state when translationId is -1 (temporary ID)
+  const isCreating = translationId === -1;
+  
+  // Render a special creating state
+  if (isCreating) {
+    return (
+      <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Starting Translation</DialogTitle>
+            <DialogDescription>
+              We're setting up your translation job...
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="py-6 flex flex-col items-center justify-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600 mb-4"></div>
+            <p className="text-center text-gray-600">Uploading your file and preparing the translation process...</p>
+          </div>
+          
+          <DialogFooter className="flex justify-end space-x-2">
+            <Button onClick={onClose}>
+              Hide
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    );
+  }
+
+  const getStepStatus = (step: string): 'pending' | 'in-progress' | 'completed' | 'failed' => {
     if (!translation) return 'pending';
-    
+    if (translation.status === 'failed') return 'failed';
+
+    const statusOrder: Translation['status'][] = ['pending', 'extracting', 'translating', 'reconstructing', 'completed'];
+    const currentStatusIndex = statusOrder.indexOf(translation.status);
+
     switch (step) {
       case 'upload':
-        return 'completed';
+        return 'completed'; // Upload is always done when this modal shows
       case 'extraction':
-        return ['extracting', 'translating', 'reconstructing', 'completed'].includes(translation.status) 
-          ? 'completed' 
-          : translation.status === 'failed' 
-            ? 'failed' 
-            : 'pending';
+        if (currentStatusIndex >= statusOrder.indexOf('extracting')) {
+          return currentStatusIndex > statusOrder.indexOf('extracting') ? 'completed' : 'in-progress';
+        }
+        return 'pending';
       case 'translation':
-        return ['translating', 'reconstructing', 'completed'].includes(translation.status) 
-          ? translation.status === 'translating' 
-            ? 'in-progress' 
-            : 'completed' 
-          : translation.status === 'failed' 
-            ? 'failed' 
-            : 'pending';
+        if (currentStatusIndex >= statusOrder.indexOf('translating')) {
+          return currentStatusIndex > statusOrder.indexOf('translating') ? 'completed' : 'in-progress';
+        }
+        return 'pending';
       case 'reconstruction':
-        return ['reconstructing', 'completed'].includes(translation.status) 
-          ? translation.status === 'reconstructing' 
-            ? 'in-progress' 
-            : 'completed' 
-          : translation.status === 'failed' 
-            ? 'failed' 
-            : 'pending';
+         if (currentStatusIndex >= statusOrder.indexOf('reconstructing')) {
+          return currentStatusIndex > statusOrder.indexOf('reconstructing') ? 'completed' : 'in-progress';
+        }
+        return 'pending';
       default:
         return 'pending';
     }
   };
 
-  const getStepProgress = (step: string) => {
+  const getStepProgress = (step: string): number => {
     if (!translation) return 0;
-    
+
+    const stepStatus = getStepStatus(step);
+
+    if (stepStatus === 'completed') return 100;
+    if (stepStatus === 'pending') return 0;
+    if (stepStatus === 'failed') return 0; // Or maybe 100 if you want to show the bar full red?
+
+    // Handle 'in-progress' states
     switch (step) {
       case 'upload':
-        return 100;
+        return 100; // Should already be 'completed'
       case 'extraction':
-        if (translation.status === 'pending') return 0;
-        if (translation.status === 'extracting') return 50;
-        return 100;
+         // Give some progress indication for extraction, maybe 50%?
+         // Could be refined if backend provided more granular progress for extraction
+        return 50; 
       case 'translation':
-        if (['pending', 'extracting'].includes(translation.status)) return 0;
+         // Use the detailed progress calculation
         if (translation.status === 'translating') {
-          if (!translation.totalPages || translation.totalPages === 0) return 50;
-          return Math.round((translation.completedPages || 0) / translation.totalPages * 100);
+          if (!translation.totalPages || translation.totalPages === 0) return 50; // Default if pages unknown
+          return Math.round(((translation.completedPages || 0) / translation.totalPages) * 100);
         }
-        return 100;
+        return 0; // Should not happen if status is 'in-progress' but not 'translating'
       case 'reconstruction':
-        if (!['reconstructing', 'completed'].includes(translation.status)) return 0;
-        if (translation.status === 'reconstructing') return 50;
-        return 100;
+        // Give some progress indication for reconstruction, maybe 50%?
+        // Could be refined if backend provided more granular progress for reconstruction
+        return 50;
       default:
         return 0;
     }
@@ -193,7 +227,7 @@ export function TranslationProgressModal({
                     <h3 className="text-sm font-medium text-gray-900">Text Extraction</h3>
                     <span className="text-xs text-gray-500">
                       {getStepStatus('extraction') === 'completed' ? 'Completed' : 
-                       getStepStatus('extraction') === 'in-progress' ? 'In Progress' : 
+                       getStepStatus('extraction') === 'in-progress' ? 'Extracting...' : 
                        getStepStatus('extraction') === 'failed' ? 'Failed' : 'Waiting'}
                     </span>
                   </div>
@@ -210,7 +244,7 @@ export function TranslationProgressModal({
                     <span className="text-xs text-gray-500">
                       {getStepStatus('translation') === 'completed' ? 'Completed' : 
                        getStepStatus('translation') === 'in-progress' ? 
-                        `In Progress (${translation.completedPages || 0}/${translation.totalPages || '?'} pages)` : 
+                        `Translating... (${translation.completedPages || 0}/${translation.totalPages || '?'})` : 
                        getStepStatus('translation') === 'failed' ? 'Failed' : 'Waiting'}
                     </span>
                   </div>
@@ -226,7 +260,7 @@ export function TranslationProgressModal({
                     <h3 className="text-sm font-medium text-gray-900">Document Reconstruction</h3>
                     <span className="text-xs text-gray-500">
                       {getStepStatus('reconstruction') === 'completed' ? 'Completed' : 
-                       getStepStatus('reconstruction') === 'in-progress' ? 'In Progress' : 
+                       getStepStatus('reconstruction') === 'in-progress' ? 'Reconstructing...' : 
                        getStepStatus('reconstruction') === 'failed' ? 'Failed' : 'Waiting'}
                     </span>
                   </div>

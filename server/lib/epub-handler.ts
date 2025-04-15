@@ -20,7 +20,7 @@ interface ChapterContent {
 interface TranslatedChapter {
   id: string;
   title: string;
-  translatedText: string;
+  translatedHtml: string; // Changed from translatedText
 }
 
 async function createTempDir(): Promise<string> {
@@ -254,7 +254,7 @@ export async function extractChapters(buffer: Buffer): Promise<ChapterContent[]>
  * @returns Buffer of the reconstructed EPUB file
  */
 export async function reconstructEpub(
-  originalEpubBuffer: Buffer, 
+  originalEpubBuffer: Buffer,
   translatedChapters: TranslatedChapter[]
 ): Promise<Buffer> {
   const tempDir = await createTempDir();
@@ -305,25 +305,24 @@ export async function reconstructEpub(
     
     const contentOpfDir = path.dirname(contentOpfPath);
     
-    // Parse content.opf using JSDOM
-    const dom = new JSDOM(contentOpf, { contentType: 'text/xml' });
-    const doc = dom.window.document;
+    // Parse content.opf using JSDOM to get spine (needed to identify chapter files)
+    const opfDom = new JSDOM(contentOpf, { contentType: 'text/xml' });
+    const opfDoc = opfDom.window.document;
     
-    // Get spine and manifest information
+    // Get spine information
     const spine: string[] = [];
+    const spineItems = opfDoc.querySelectorAll('itemref');
     const manifest: Record<string, string> = {};
     
-    // Extract items from manifest
-    const items = doc.querySelectorAll('item');
+    // Extract items from manifest (needed to resolve spine idrefs to file paths)
+    const items = opfDoc.querySelectorAll('item');
     for (let i = 0; i < items.length; i++) {
       const item = items[i];
       const id = item.getAttribute('id') || '';
       const href = item.getAttribute('href') || '';
-      manifest[id] = path.join(contentOpfDir, href).replace(/\\/g, '/');
+      manifest[id] = path.join(contentOpfDir, href).replace(/\\\\/g, '/');
     }
     
-    // Extract spine items
-    const spineItems = doc.querySelectorAll('itemref');
     for (let i = 0; i < spineItems.length; i++) {
       const item = spineItems[i];
       const idref = item.getAttribute('idref') || '';
@@ -335,7 +334,7 @@ export async function reconstructEpub(
     // Create an index of translated chapters by id for easier lookup
     const translatedChaptersMap = new Map<string, string>();
     translatedChapters.forEach((chapter) => {
-      translatedChaptersMap.set(chapter.id, chapter.translatedText);
+      translatedChaptersMap.set(chapter.id, chapter.translatedHtml); // Changed from translatedText
     });
     
     // Copy all files from original EPUB
@@ -352,44 +351,37 @@ export async function reconstructEpub(
       let isChapterFile = false;
       let chapterId = '';
       
-      // Find the matching chapter ID for this file
+      // Find the matching chapter ID for this file based on the spine order
       for (let i = 0; i < spine.length; i++) {
-        if (spine[i] === filename) {
+        // Normalize paths for comparison (spine path vs zip filename)
+        const normalizedSpinePath = path.normalize(spine[i]).replace(/\\\\/g, '/');
+        const normalizedFilename = path.normalize(filename).replace(/\\\\/g, '/');
+        
+        if (normalizedSpinePath === normalizedFilename) {
           isChapterFile = true;
-          chapterId = `chapter-${i + 1}`;
+          // Use the chapter ID generated during extraction (e.g., "chapter-1", "chapter-2")
+          chapterId = `chapter-${i + 1}`; 
           break;
         }
       }
       
       if (isChapterFile && translatedChaptersMap.has(chapterId)) {
         // This is a chapter file that has been translated
-        const originalContent = await file.async('text');
+        // Get the fully translated HTML content directly from the map
+        const translatedContent = translatedChaptersMap.get(chapterId);
         
-        // Use JSDOM to parse and modify HTML
-        const dom = new JSDOM(originalContent);
-        const doc = dom.window.document;
-        
-        if (doc.body) {
-          // Replace body content with translated text
-          // First, preserve any script tags
-          const scripts = Array.from(doc.querySelectorAll('script'));
-          
-          // Replace body content with translated text wrapped in a paragraph
-          doc.body.innerHTML = `<p>${translatedChaptersMap.get(chapterId)}</p>`;
-          
-          // Re-add any scripts that were in the original document
-          scripts.forEach(script => {
-            doc.body.appendChild(script);
-          });
+        if (translatedContent !== undefined) {
+           // Add the translated file (full HTML) to the new ZIP
+           newZip.file(filename, translatedContent);
+        } else {
+           // Fallback: copy original if translation missing for some reason
+           console.warn(`Translation missing for chapter ID: ${chapterId}, copying original file: ${filename}`);
+           const content = await file.async('nodebuffer');
+           newZip.file(filename, content);
         }
         
-        // Get the modified HTML content
-        const translatedContent = dom.serialize();
-        
-        // Add the translated file to the new ZIP
-        newZip.file(filename, translatedContent);
       } else {
-        // Copy non-chapter files as-is
+        // Copy non-chapter files or untranslated chapter files as-is
         const content = await file.async('nodebuffer');
         newZip.file(filename, content);
       }
@@ -401,7 +393,7 @@ export async function reconstructEpub(
     // Write the file to the tempDir for debugging if needed
     await fs.writeFile(outputPath, newEpubBuffer);
     
-    console.log('EPUB reconstructed successfully with translated content');
+    console.log('EPUB reconstructed successfully with translated HTML content');
     return newEpubBuffer;
   } catch (error: any) {
     console.error('Error reconstructing EPUB:', error);

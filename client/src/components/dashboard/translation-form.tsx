@@ -71,18 +71,26 @@ export function TranslationForm({ onTranslationCreated }: { onTranslationCreated
         formData.append("customPrompt", data.customPrompt);
       }
 
-      // Simulate upload progress
-      const progressInterval = setInterval(() => {
-        setUploadProgress((prev) => {
-          if (prev >= 95) {
-            clearInterval(progressInterval);
-            return 95;
-          }
-          return prev + 5;
-        });
-      }, 300);
-
       try {
+        // Call onTranslationCreated immediately with a temp ID to open the progress modal
+        // We'll provide the actual ID once we receive it from the API
+        if (onTranslationCreated) {
+          // Use a temporary ID that will be replaced with the real one
+          // We use -1 as a convention for "loading"
+          onTranslationCreated(-1);
+        }
+
+        // Simulate upload progress - faster initial progress to show something happening
+        const progressInterval = setInterval(() => {
+          setUploadProgress((prev) => {
+            if (prev >= 95) {
+              clearInterval(progressInterval);
+              return 95;
+            }
+            return prev + 10; // Make it faster
+          });
+        }, 200); // Shorter interval
+
         const response = await fetch('/api/translations', {
           method: 'POST',
           body: formData,
@@ -97,7 +105,14 @@ export function TranslationForm({ onTranslationCreated }: { onTranslationCreated
           throw new Error(errorText || response.statusText);
         }
 
-        return await response.json();
+        const result = await response.json();
+        
+        // Now call onTranslationCreated again with the actual ID from the server
+        if (onTranslationCreated) {
+          onTranslationCreated(result.id);
+        }
+        
+        return result;
       } finally {
         setIsUploading(false);
       }
@@ -110,10 +125,6 @@ export function TranslationForm({ onTranslationCreated }: { onTranslationCreated
         title: "Translation started",
         description: "Your file is being processed for translation",
       });
-      
-      if (onTranslationCreated) {
-        onTranslationCreated(data.id);
-      }
       
       // Reset form
       form.reset();
