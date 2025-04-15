@@ -2,7 +2,7 @@ import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import { storage } from "./storage";
-import { startBatchProcessing, processPendingTranslations } from "./lib/batch-processor";
+import { startBatchProcessing } from "./lib/batch-processor";
 
 const app = express();
 
@@ -12,12 +12,12 @@ const CHECK_PENDING_INTERVAL = 5 * 60 * 1000; // 5 minutos en milisegundos
 async function checkPendingTranslations() {
   try {
     const pendingTranslations = await storage.getTranslationsByStatus('batch_processing');
-
+    
     for (const translation of pendingTranslations) {
       // Solo reintentar si han pasado más de 2 minutos desde la última verificación
       const lastChecked = translation.lastChecked ? new Date(translation.lastChecked) : null;
       const twoMinutesAgo = new Date(Date.now() - 2 * 60 * 1000);
-
+      
       if (!lastChecked || lastChecked < twoMinutesAgo) {
         if (translation.batchId) {
           log(`Restarting batch processing for translation ${translation.id}`);
@@ -96,8 +96,7 @@ app.use((req, res, next) => {
     port,
     host: "0.0.0.0",
     reusePort: true,
-  }, async () => {
+  }, () => {
     log(`serving on port ${port}`);
-    await processPendingTranslations();
   });
 })();
