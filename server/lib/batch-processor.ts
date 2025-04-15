@@ -146,7 +146,9 @@ async function checkBatchProgress(translationId: number): Promise<void> {
       
       // Usar los metadatos existentes o inicializar nuevos
       const metadata = currentTranslation.metadata || {};
-      const retryCount = (metadata.retryCount || 0) + 1;
+      // Convertimos metadata a un objeto si no lo es
+      const metadataObj = typeof metadata === 'object' ? metadata : {};
+      const retryCount = ((metadataObj as any).retryCount || 0) + 1;
       const maxRetries = 5; // Máximo número de reintentos
       
       if (retryCount <= maxRetries) {
@@ -156,7 +158,7 @@ async function checkBatchProgress(translationId: number): Promise<void> {
         await storage.updateTranslation(translationId, {
           error: `Error checking batch status (attempt ${retryCount}): ${error.message}`,
           metadata: { 
-            ...metadata,
+            ...metadataObj,
             retryCount,
             lastError: error.message
           }
@@ -176,7 +178,7 @@ async function checkBatchProgress(translationId: number): Promise<void> {
           status: 'failed',
           error: `Multiple errors checking batch status: ${error.message}. Max retries reached.`,
           metadata: { 
-            ...metadata,
+            ...metadataObj,
             retryCount,
             lastError: error.message,
             failedAt: new Date().toISOString()

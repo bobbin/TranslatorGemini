@@ -211,6 +211,8 @@ export async function createBatchTranslation(
  * @returns Updated BatchTranslationState
  */
 export async function checkBatchStatus(batchId: string): Promise<BatchTranslationState> {
+  console.log(`[Batch API] checkBatchStatus called for batch ID: ${batchId}`);
+  const startTime = new Date();
   try {
     const batchState = batchTranslations.get(batchId);
     if (!batchState) {
@@ -315,6 +317,11 @@ export async function checkBatchStatus(batchId: string): Promise<BatchTranslatio
     batchTranslations.set(batchState.batchId, batchState);
     console.log(`[Batch API] Updated batch state for ${batchState.batchId} to status: ${batchState.batchStatus}`);
     
+    // Log execution time for performance monitoring
+    const endTime = new Date();
+    const executionTimeMs = endTime.getTime() - startTime.getTime();
+    console.log(`[Batch API] checkBatchStatus completed in ${executionTimeMs}ms for batch ID: ${batchId}`);
+    
     return batchState;
   } catch (error: any) {
     console.error(`[Batch API] Error checking batch status:`, error);
@@ -331,6 +338,11 @@ export async function checkBatchStatus(batchId: string): Promise<BatchTranslatio
       // Si no encontramos el estado del lote, podría ser porque el ID de OpenAI no coincide con el que estamos usando
       console.error(`[Batch API] Batch state not found for ID: ${batchId}. This might be a mismatch between OpenAI batch ID and stored ID.`);
     }
+    
+    // Log execution time on error as well
+    const endTime = new Date();
+    const executionTimeMs = endTime.getTime() - startTime.getTime();
+    console.log(`[Batch API] checkBatchStatus failed in ${executionTimeMs}ms for batch ID: ${batchId}`);
     
     throw new Error(`Failed to check batch translation status: ${error.message}`);
   }
@@ -360,5 +372,13 @@ export function getBatchResults(batchId: string): TranslatedChapter[] | null {
  * @returns BatchTranslationState or undefined if not found
  */
 export function getBatchState(batchId: string): BatchTranslationState | undefined {
-  return batchTranslations.get(batchId);
+  const state = batchTranslations.get(batchId);
+  if (!state) {
+    console.log(`[Batch API] getBatchState: No batch state found for ID: ${batchId}`);
+    console.log(`[Batch API] Currently tracking ${batchTranslations.size} batch translations`);
+    if (batchTranslations.size > 0) {
+      console.log(`[Batch API] Available batch IDs: ${Array.from(batchTranslations.keys()).join(', ')}`);
+    }
+  }
+  return state;
 }
