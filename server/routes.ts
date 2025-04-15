@@ -8,7 +8,7 @@ import fs from 'fs/promises';
 import os from 'os';
 import { extractChapters, reconstructEpub } from './lib/epub-handler';
 import { extractPages, reconstructPdf } from './lib/pdf-handler';
-import { translateText } from './lib/gemini-service';
+import { translateText } from './lib/translation';
 import { setupAuth, ensureAuthenticated } from './auth';
 import { 
   uploadFileToS3, 
@@ -211,13 +211,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const translatedChapters = [];
         for (let i = 0; i < chapters.length; i++) {
           const chapter = chapters[i];
+          console.log(`[Translation Loop] Starting translation for chapter ${i + 1}/${chapters.length} (ID: ${chapter.id})`);
           const translatedText = await translateText(
             chapter.text,
             result.data.sourceLanguage,
             result.data.targetLanguage,
             result.data.customPrompt || undefined
           );
-
+          console.log(`[Translation Loop] Finished translation for chapter ${i + 1}/${chapters.length} (ID: ${chapter.id}). Translated text length: ${translatedText?.length ?? 0}`);
+          console.log(`[Translation Loop] Translated text: ${translatedText}`);
           translatedChapters.push({
             id: chapter.id,
             title: chapter.title,
@@ -233,6 +235,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           });
         }
 
+        console.log("[Reconstruction] Finished translation loop. Preparing to reconstruct EPUB.");
         // Update to reconstructing status
         await storage.updateTranslation(translation.id, {
           status: 'reconstructing',

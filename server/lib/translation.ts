@@ -45,6 +45,7 @@ export async function translateText(
   style: string = 'standard'
 ): Promise<string> {
   try {
+    console.log(`[translateText] Starting translation. Target: ${targetLanguage}, Style: ${style}. Text length: ${text.length}`);
     if (!API_KEY) {
       throw new Error('Gemini API key not configured');
     }
@@ -73,8 +74,9 @@ export async function translateText(
       6. Only return the translated text
     `;
     
+    console.log(`[translateText] Calling Gemini API. Model: gemini-2.0-flash`);
     // Use Gemini 2.0 Flash model
-    const model = genAI.getGenerativeModel({ model: "gemini-pro" });
+    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
     
     // Generate content
     const result = await model.generateContent(prompt);
@@ -82,8 +84,10 @@ export async function translateText(
     const translatedText = response.text();
     
     return translatedText;
-  } catch (error) {
+  } catch (error: any) {
     console.error('Translation error:', error);
-    throw new Error(`Translation failed: ${error.message}`);
+    // Attempt to access message safely
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    throw new Error(`Translation failed: ${errorMessage}`);
   }
 }
