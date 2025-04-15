@@ -322,9 +322,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getTranslationsByStatus(status: string): Promise<Translation[]> {
-    return await db.query.translations.findMany({
-      where: eq(translations.status, status)
-    });
+    return db.select().from(translations).where(eq(translations.status, status));
   }
 
   // User settings methods

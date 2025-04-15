@@ -11,6 +11,25 @@ const CHECK_INTERVAL = 120000;
 const activeTimers = new Map<number, NodeJS.Timeout>();
 
 /**
+ * Procesa las traducciones pendientes al iniciar el servidor
+ */
+export async function processPendingTranslations(): Promise<void> {
+  try {
+    const pendingTranslations = await storage.getTranslationsByStatus('batch_processing');
+    console.log(`[Batch Processor] Found ${pendingTranslations.length} pending translations`);
+    
+    for (const translation of pendingTranslations) {
+      if (translation.batchId) {
+        console.log(`[Batch Processor] Processing pending translation ${translation.id} with batch ${translation.batchId}`);
+        startBatchProcessing(translation.id, translation.batchId);
+      }
+    }
+  } catch (error) {
+    console.error('[Batch Processor] Error processing pending translations:', error);
+  }
+}
+
+/**
  * Inicia el procesamiento por lotes para una traducción
  * @param translationId ID de la traducción
  * @param batchId ID del trabajo por lotes de OpenAI
