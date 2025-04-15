@@ -16,6 +16,8 @@ import {
   deleteFileFromS3,
   verifyS3Credentials 
 } from './lib/s3-service';
+import { createBatchTranslation, ChapterForTranslation } from './lib/openai-batch';
+import { startBatchProcessing } from './lib/batch-processor';
 
 // Set up multer for file upload handling
 const upload = multer({
@@ -207,42 +209,85 @@ export async function registerRoutes(app: Express): Promise<Server> {
           totalPages: totalUnits
         });
 
-        // Translate each chapter (in a real app, this would be done in chunks or with a job queue)
-        const translatedChapters: { id: string; title: string; translatedHtml: string }[] = [];
-        for (let i = 0; i < chapters.length; i++) {
-          const chapter = chapters[i];
-          console.log(`[Translation Loop] Starting translation for chapter ${i + 1}/${chapters.length} (ID: ${chapter.id})`);
-          const translatedHtml = await translateText(
-            chapter.html,
+        // Preparar los capítulos para el procesamiento por lotes
+        const chaptersForBatch: ChapterForTranslation[] = chapters.map(chapter => ({
+          id: chapter.id,
+          title: chapter.title,
+          html: chapter.html
+        }));
+
+        console.log(`[Batch] Creating batch translation request for ${chaptersForBatch.length} chapters`);
+        
+        try {
+          // Crear un trabajo por lotes para la traducción
+          const batchState = await createBatchTranslation(
+            chaptersForBatch,
             result.data.sourceLanguage,
             result.data.targetLanguage,
-            result.data.customPrompt || undefined
+            result.data.customPrompt || 'standard'
           );
-          console.log(`[Translation Loop] Finished translation for chapter ${i + 1}/${chapters.length} (ID: ${chapter.id}). Translated HTML length: ${translatedHtml?.length ?? 0}`);
-          translatedChapters.push({
-            id: chapter.id,
-            title: chapter.title,
-            translatedHtml
+          
+          console.log(`[Batch] Batch translation request created with ID: ${batchState.batchId}`);
+          
+          // Iniciar el procesamiento por lotes y actualizar la traducción
+          startBatchProcessing(translation.id, batchState.batchId);
+          
+          // Ya no necesitamos reconstruir el EPUB ahora, el procesador por lotes lo hará cuando termine
+          // y actualizará el estado de la traducción
+          translatedContent = undefined; // Lo establecemos a undefined para evitar intentos de subir archivos
+          
+          // Devolvemos la respuesta inmediatamente, el procesamiento continúa en segundo plano
+          res.status(201).json({
+            ...translation,
+            status: 'batch_processing',
+            progress: 40
           });
+          
+          // Retornar temprano para evitar el resto del procesamiento
+          return;
+        } catch (batchError: any) {
+          console.error('[Batch] Error creating batch translation:', batchError);
+          
+          // Si falla el procesamiento por lotes, volvemos al método sincrónico
+          console.log('[Batch] Falling back to synchronous translation');
+          
+          // Translate each chapter (método sincrónico de respaldo)
+          const translatedChapters: { id: string; title: string; translatedHtml: string }[] = [];
+          for (let i = 0; i < chapters.length; i++) {
+            const chapter = chapters[i];
+            console.log(`[Translation Loop] Starting translation for chapter ${i + 1}/${chapters.length} (ID: ${chapter.id})`);
+            const translatedHtml = await translateText(
+              chapter.html,
+              result.data.sourceLanguage,
+              result.data.targetLanguage,
+              result.data.customPrompt || undefined
+            );
+            console.log(`[Translation Loop] Finished translation for chapter ${i + 1}/${chapters.length} (ID: ${chapter.id}). Translated HTML length: ${translatedHtml?.length ?? 0}`);
+            translatedChapters.push({
+              id: chapter.id,
+              title: chapter.title,
+              translatedHtml
+            });
 
-          // Update progress
-          const completedPages = i + 1;
-          const progress = Math.floor(30 + (completedPages / totalUnits) * 50);
+            // Update progress
+            const completedPages = i + 1;
+            const progress = Math.floor(30 + (completedPages / totalUnits) * 50);
+            await storage.updateTranslation(translation.id, {
+              progress,
+              completedPages
+            });
+          }
+
+          console.log("[Reconstruction] Finished translation loop. Preparing to reconstruct EPUB.");
+          // Update to reconstructing status
           await storage.updateTranslation(translation.id, {
-            progress,
-            completedPages
+            status: 'reconstructing',
+            progress: 80
           });
+
+          // Reconstruct EPUB
+          translatedContent = await reconstructEpub(file.buffer, translatedChapters);
         }
-
-        console.log("[Reconstruction] Finished translation loop. Preparing to reconstruct EPUB.");
-        // Update to reconstructing status
-        await storage.updateTranslation(translation.id, {
-          status: 'reconstructing',
-          progress: 80
-        });
-
-        // Reconstruct EPUB
-        translatedContent = await reconstructEpub(file.buffer, translatedChapters);
       } else if (fileType === 'pdf') {
         // Extract pages from PDF
         const pages = await extractPages(file.buffer);
@@ -360,6 +405,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
       message: 'Authentication successful',
       user: userWithoutPassword
     });
+  });
+
+  // Check batch translation status
+  app.get('/api/translations/:id/batch-status', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      const translation = await storage.getTranslation(id);
+      
+      if (!translation) {
+        return res.status(404).json({ message: 'Translation not found' });
+      }
+      
+      // Check if the translation belongs to the authenticated user
+      if (translation.userId !== req.user!.id) {
+        return res.status(403).json({ message: 'Forbidden' });
+      }
+      
+      // Check if this is a batch translation
+      if (translation.status !== 'batch_processing') {
+        return res.status(400).json({ 
+          message: 'This translation is not using batch processing',
+          status: translation.status,
+          progress: translation.progress
+        });
+      }
+      
+      res.json({
+        id: translation.id,
+        status: translation.status,
+        progress: translation.progress,
+        lastChecked: translation.lastChecked,
+        batchId: translation.batchId,
+        completedPages: translation.completedPages,
+        totalPages: translation.totalPages
+      });
+    } catch (error: any) {
+      console.error('Batch status check error:', error);
+      res.status(500).json({ message: error.message || 'Failed to check batch status' });
+    }
   });
 
   // Download a translated file (generate presigned URL)
