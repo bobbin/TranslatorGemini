@@ -11,8 +11,16 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { FileText, BookOpen, X, Languages, CheckCircle, Clock } from "lucide-react";
+import { FileText, BookOpen, X, Languages, CheckCircle, Clock, AlertTriangle } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+
+// Define una interfaz para los metadatos de la traducción
+interface TranslationMetadata {
+  retryCount?: number;
+  lastError?: string;
+  retryBackoffMs?: number;
+  [key: string]: any; // Permite campos adicionales
+}
 
 interface TranslationProgressModalProps {
   translationId: number | null;
@@ -347,14 +355,15 @@ export function TranslationProgressModal({
                       <span className="font-mono text-gray-800">{translation.batchId || 'Not assigned yet'}</span>
                     </div>
                     
-                    {translation.metadata && typeof translation.metadata === 'object' && (
+                    {translation.metadata ? (
                       <div className="flex justify-between text-xs">
                         <span className="text-gray-600">Retry Count:</span>
                         <span className="font-mono text-gray-800">
-                          {((translation.metadata as Record<string, any>).retryCount || 0).toString()}
+                          {JSON.stringify(translation.metadata).includes('retryCount') ? 
+                           String((translation.metadata as any).retryCount) : '0'}
                         </span>
                       </div>
-                    )}
+                    ) : null}
                     
                     {translation.lastChecked && (
                       <div className="flex justify-between text-xs">
