@@ -214,9 +214,34 @@ export async function checkBatchStatus(batchId: string): Promise<BatchTranslatio
   console.log(`[Batch API] checkBatchStatus called for batch ID: ${batchId}`);
   const startTime = new Date();
   try {
-    const batchState = batchTranslations.get(batchId);
+    // Intentar obtener el estado de memoria primero
+    let batchState = batchTranslations.get(batchId);
+    
+    // Si no está en memoria, crear un nuevo estado basado en la información de OpenAI
     if (!batchState) {
-      throw new Error(`Batch translation with ID ${batchId} not found`);
+      console.log(`[Batch API] Batch state not found in memory, fetching from OpenAI API`);
+      const batch = await openai.batches.retrieve(batchId);
+      
+      batchState = {
+        batchId: batch.id,
+        inputFileId: batch.input_file_id || null,
+        batchStatus: batch.status === 'completed' ? 'completed' : 
+                    batch.status === 'failed' ? 'failed' : 'in_progress',
+        sourceLanguage: 'unknown', // Estos datos no los podemos recuperar de la API
+        targetLanguage: 'unknown',
+        style: 'standard',
+        chapters: [],
+        translatedChapters: [],
+        progress: batch.request_counts ? 
+                 Math.floor((batch.request_counts.completed || 0) / (batch.request_counts.total || 1) * 100) : 0,
+        lastChecked: new Date(),
+        createdAt: new Date(batch.created_at),
+        completedAt: batch.finished_at ? new Date(batch.finished_at) : null,
+        error: null
+      };
+      
+      // Guardar en memoria para futuras consultas
+      batchTranslations.set(batchId, batchState);
     }
     
     console.log(`[Batch API] Checking status of batch: ${batchId}`);
