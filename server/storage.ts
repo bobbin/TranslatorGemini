@@ -135,7 +135,10 @@ export class MemStorage implements IStorage {
       metadata: null,
       totalPages: null,
       completedPages: 0,
-      customPrompt: insertTranslation.customPrompt || null
+      customPrompt: insertTranslation.customPrompt || null,
+      processingType: insertTranslation.processingType || "batch",
+      batchId: null,
+      lastChecked: null
     };
 
     this.translations.set(id, translation);
@@ -207,21 +210,21 @@ export class MemStorage implements IStorage {
   }
 
   async updateUserSettings(userId: number, update: UpdateUserSettings): Promise<UserSettings | undefined> {
-    const settings = Array.from(this.userSettings.values()).find(
-      (settings) => settings.userId === userId
+    const userSetting = Array.from(this.userSettings.values()).find(
+      (setting) => setting.userId === userId
     );
 
-    if (!settings) {
+    if (!userSetting) {
       return undefined;
     }
 
     const updatedSettings: UserSettings = {
-      ...settings,
+      ...userSetting,
       ...update,
       updatedAt: new Date()
     };
 
-    this.userSettings.set(settings.id, updatedSettings);
+    this.userSettings.set(userSetting.id, updatedSettings);
     return updatedSettings;
   }
 }
@@ -280,9 +283,15 @@ export class DatabaseStorage implements IStorage {
 
   // Translation methods
   async createTranslation(translation: InsertTranslation): Promise<Translation> {
+    // Add processingType if it's not provided
+    const dataToInsert = {
+      ...translation,
+      processingType: translation.processingType || "batch"
+    };
+    
     const [newTranslation] = await db
       .insert(translations)
-      .values(translation)
+      .values(dataToInsert)
       .returning();
     return newTranslation;
   }

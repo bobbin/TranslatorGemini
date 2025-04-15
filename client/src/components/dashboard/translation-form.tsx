@@ -30,6 +30,9 @@ const formSchema = z.object({
   sourceLanguage: z.string().min(1, "Source language is required"),
   targetLanguage: z.string().min(1, "Target language is required"),
   customPrompt: z.string().optional(),
+  processingType: z.enum(["batch", "direct"], {
+    required_error: "Processing type is required",
+  }),
 });
 
 type FormValues = z.infer<typeof formSchema>;
@@ -54,6 +57,7 @@ export function TranslationForm({ onTranslationCreated }: { onTranslationCreated
       sourceLanguage: "English",
       targetLanguage: "Spanish",
       customPrompt: "",
+      processingType: "batch",
     },
   });
 
@@ -66,6 +70,7 @@ export function TranslationForm({ onTranslationCreated }: { onTranslationCreated
       formData.append("file", data.file);
       formData.append("sourceLanguage", data.sourceLanguage);
       formData.append("targetLanguage", data.targetLanguage);
+      formData.append("processingType", data.processingType);
       
       if (data.customPrompt) {
         formData.append("customPrompt", data.customPrompt);
@@ -231,6 +236,32 @@ export function TranslationForm({ onTranslationCreated }: { onTranslationCreated
             )}
           />
         </div>
+
+        <FormField
+          control={form.control}
+          name="processingType"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Processing Type</FormLabel>
+              <Select
+                disabled={isUploading}
+                onValueChange={field.onChange}
+                defaultValue={field.value}
+              >
+                <FormControl>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select processing type" />
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  <SelectItem value="batch">Batch Processing (Faster for large documents)</SelectItem>
+                  <SelectItem value="direct">Direct Processing (Real-time updates)</SelectItem>
+                </SelectContent>
+              </Select>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
 
         <FormField
           control={form.control}

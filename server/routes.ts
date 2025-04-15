@@ -18,6 +18,7 @@ import {
 } from './lib/s3-service';
 import { createBatchTranslation, ChapterForTranslation, getBatchState } from './lib/openai-batch';
 import { startBatchProcessing } from './lib/batch-processor';
+import { saveTranslatedChapter, getTranslatedChapter, cleanupTranslationStorage } from './lib/temp-storage';
 
 // Set up multer for file upload handling
 const upload = multer({
@@ -153,6 +154,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: 'Unsupported file type' });
       }
 
+      // Get the processing type
+      const processingType = req.body.processingType || 'batch';
+      if (!['batch', 'direct'].includes(processingType)) {
+        return res.status(400).json({ message: 'Invalid processing type. Must be "batch" or "direct"' });
+      }
+
       // Validate request body
       const payload = {
         userId: req.user!.id,
@@ -161,6 +168,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         sourceLanguage: req.body.sourceLanguage,
         targetLanguage: req.body.targetLanguage,
         customPrompt: req.body.customPrompt,
+        processingType,
       };
 
       const result = insertTranslationSchema.safeParse(payload);
@@ -209,86 +217,106 @@ export async function registerRoutes(app: Express): Promise<Server> {
           totalPages: totalUnits
         });
 
-        // Preparar los capítulos para el procesamiento por lotes
-        const chaptersForBatch: ChapterForTranslation[] = chapters.map(chapter => ({
-          id: chapter.id,
-          title: chapter.title,
-          html: chapter.html
-        }));
+        // Process differently based on processing type
+        if (processingType === 'batch') {
+          // Preparar los capítulos para el procesamiento por lotes
+          const chaptersForBatch: ChapterForTranslation[] = chapters.map(chapter => ({
+            id: chapter.id,
+            title: chapter.title,
+            html: chapter.html
+          }));
 
-        console.log(`[Batch] Creating batch translation request for ${chaptersForBatch.length} chapters`);
-        
-        try {
-          // Crear un trabajo por lotes para la traducción
-          const batchState = await createBatchTranslation(
-            chaptersForBatch,
-            result.data.sourceLanguage,
-            result.data.targetLanguage,
-            result.data.customPrompt || 'standard'
-          );
+          console.log(`[Batch] Creating batch translation request for ${chaptersForBatch.length} chapters`);
           
-          // Registrar el ID del lote proporcionado por OpenAI
-          console.log(`[Batch] Batch translation request created with ID: ${batchState.batchId}`);
-          
-          // Iniciar el procesamiento por lotes usando el ID de OpenAI
-          startBatchProcessing(translation.id, batchState.batchId);
-          
-          // Ya no necesitamos reconstruir el EPUB ahora, el procesador por lotes lo hará cuando termine
-          // y actualizará el estado de la traducción
-          translatedContent = undefined; // Lo establecemos a undefined para evitar intentos de subir archivos
-          
-          // Devolvemos la respuesta inmediatamente, el procesamiento continúa en segundo plano
-          res.status(201).json({
-            ...translation,
-            status: 'batch_processing',
-            progress: 40
-          });
-          
-          // Retornar temprano para evitar el resto del procesamiento
-          return;
-        } catch (batchError: any) {
-          console.error('[Batch] Error creating batch translation:', batchError);
-          
-          // Si falla el procesamiento por lotes, volvemos al método sincrónico
-          console.log('[Batch] Falling back to synchronous translation');
-          
-          // Translate each chapter (método sincrónico de respaldo)
-          const translatedChapters: { id: string; title: string; translatedHtml: string }[] = [];
-          for (let i = 0; i < chapters.length; i++) {
-            const chapter = chapters[i];
-            console.log(`[Translation Loop] Starting translation for chapter ${i + 1}/${chapters.length} (ID: ${chapter.id})`);
-            const translatedHtml = await translateText(
-              chapter.html,
+          try {
+            // Crear un trabajo por lotes para la traducción
+            const batchState = await createBatchTranslation(
+              chaptersForBatch,
               result.data.sourceLanguage,
               result.data.targetLanguage,
-              result.data.customPrompt || undefined
+              result.data.customPrompt || 'standard'
             );
-            console.log(`[Translation Loop] Finished translation for chapter ${i + 1}/${chapters.length} (ID: ${chapter.id}). Translated HTML length: ${translatedHtml?.length ?? 0}`);
-            translatedChapters.push({
-              id: chapter.id,
-              title: chapter.title,
-              translatedHtml
+            
+            // Registrar el ID del lote proporcionado por OpenAI
+            console.log(`[Batch] Batch translation request created with ID: ${batchState.batchId}`);
+            
+            // Iniciar el procesamiento por lotes usando el ID de OpenAI
+            startBatchProcessing(translation.id, batchState.batchId);
+            
+            // Ya no necesitamos reconstruir el EPUB ahora, el procesador por lotes lo hará cuando termine
+            // y actualizará el estado de la traducción
+            translatedContent = undefined; // Lo establecemos a undefined para evitar intentos de subir archivos
+            
+            // Devolvemos la respuesta inmediatamente, el procesamiento continúa en segundo plano
+            res.status(201).json({
+              ...translation,
+              status: 'batch_processing',
+              progress: 40
             });
-
-            // Update progress
-            const completedPages = i + 1;
-            const progress = Math.floor(30 + (completedPages / totalUnits) * 50);
-            await storage.updateTranslation(translation.id, {
-              progress,
-              completedPages
-            });
+            
+            // Retornar temprano para evitar el resto del procesamiento
+            return;
+          } catch (batchError: any) {
+            console.error('[Batch] Error creating batch translation:', batchError);
+            
+            // Si falla el procesamiento por lotes, volvemos al método sincrónico
+            console.log('[Batch] Falling back to synchronous translation');
           }
-
-          console.log("[Reconstruction] Finished translation loop. Preparing to reconstruct EPUB.");
-          // Update to reconstructing status
-          await storage.updateTranslation(translation.id, {
-            status: 'reconstructing',
-            progress: 80
+        } 
+        
+        // Direct processing or fallback from batch processing error
+        await storage.updateTranslation(translation.id, {
+          status: 'direct_processing',
+          progress: 30
+        });
+        
+        // Translate each chapter using direct translation
+        const chapterPaths: string[] = [];
+        for (let i = 0; i < chapters.length; i++) {
+          const chapter = chapters[i];
+          console.log(`[Direct Translation] Starting translation for chapter ${i + 1}/${chapters.length} (ID: ${chapter.id})`);
+          const translatedHtml = await translateText(
+            chapter.html,
+            result.data.sourceLanguage,
+            result.data.targetLanguage,
+            result.data.customPrompt || undefined
+          );
+          console.log(`[Direct Translation] Finished translation for chapter ${i + 1}/${chapters.length} (ID: ${chapter.id}). Translated HTML length: ${translatedHtml?.length ?? 0}`);
+          
+          // Save translated chapter to temporary storage
+          const chapterPath = await saveTranslatedChapter(translation.id, {
+            id: chapter.id,
+            title: chapter.title,
+            translatedHtml
           });
+          chapterPaths.push(chapterPath);
 
-          // Reconstruct EPUB
-          translatedContent = await reconstructEpub(file.buffer, translatedChapters);
+          // Update progress
+          const completedPages = i + 1;
+          const progress = Math.floor(30 + (completedPages / totalUnits) * 50);
+          await storage.updateTranslation(translation.id, {
+            progress,
+            completedPages
+          });
         }
+
+        console.log("[Reconstruction] Finished translation loop. Preparing to reconstruct EPUB.");
+        // Update to reconstructing status
+        await storage.updateTranslation(translation.id, {
+          status: 'reconstructing',
+          progress: 80
+        });
+
+        // Load all translated chapters from temporary storage
+        const translatedChapters = await Promise.all(
+          chapterPaths.map(path => getTranslatedChapter(path))
+        );
+
+        // Reconstruct EPUB
+        translatedContent = await reconstructEpub(file.buffer, translatedChapters);
+
+        // Clean up temporary storage
+        await cleanupTranslationStorage(translation.id);
       } else if (fileType === 'pdf') {
         // Extract pages from PDF
         const pages = await extractPages(file.buffer);
@@ -299,6 +327,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
           status: 'translating',
           progress: 30,
           totalPages: totalUnits
+        });
+
+        // For PDF, we only support direct processing for now
+        if (processingType === 'batch') {
+          console.log('[PDF] Batch processing not yet supported for PDF files, falling back to direct processing');
+        }
+        
+        await storage.updateTranslation(translation.id, {
+          status: 'direct_processing',
+          progress: 30
         });
 
         // Translate each page
@@ -336,6 +374,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         translatedContent = await reconstructPdf(file.buffer, translatedPages);
       }
 
+      // If we get here, we're using direct processing and have translated content
       // Subir el archivo traducido a S3
       const translatedFileName = `translated-${file.originalname}`;
       // Asegurarnos de que translatedContent no sea undefined

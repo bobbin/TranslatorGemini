@@ -55,6 +55,11 @@ export function TranslationProgressModal({
         return 30000; // Consultar cada 30 segundos
       }
       
+      // Para procesamiento directo, mantenemos polling frecuente
+      if (translationData.status === 'direct_processing') {
+        return 2000; // Consultar cada 2 segundos
+      }
+      
       return pollingInterval;
     },
   });
@@ -134,7 +139,15 @@ export function TranslationProgressModal({
     if (!translation) return 'pending';
     if (translation.status === 'failed') return 'failed';
 
-    const statusOrder: Translation['status'][] = ['pending', 'extracting', 'translating', 'batch_processing', 'reconstructing', 'completed'];
+    const statusOrder: Translation['status'][] = [
+      'pending', 
+      'extracting', 
+      'translating', 
+      'batch_processing', 
+      'direct_processing', 
+      'reconstructing', 
+      'completed'
+    ];
     const currentStatusIndex = statusOrder.indexOf(translation.status);
 
     switch (step) {
@@ -146,8 +159,8 @@ export function TranslationProgressModal({
         }
         return 'pending';
       case 'translation':
-        // Tratar 'batch_processing' como parte de la fase de traducción
-        if (translation.status === 'batch_processing') {
+        // Tratar 'batch_processing' y 'direct_processing' como parte de la fase de traducción
+        if (translation.status === 'batch_processing' || translation.status === 'direct_processing') {
           return 'in-progress';
         }
         if (currentStatusIndex >= statusOrder.indexOf('translating')) {
@@ -183,7 +196,10 @@ export function TranslationProgressModal({
         return 50; 
       case 'translation':
         // Use the detailed progress calculation
-        if (translation.status === 'translating' || translation.status === 'batch_processing') {
+        if (translation.status === 'translating' || 
+            translation.status === 'batch_processing' || 
+            translation.status === 'direct_processing') {
+          
           // Para procesamiento por lotes, usamos directamente el valor de progress
           // ya que se actualiza periódicamente desde el backend durante la verificación de estado
           if (translation.status === 'batch_processing') {
@@ -192,11 +208,13 @@ export function TranslationProgressModal({
             return Math.max(0, Math.min(100, scaledProgress)); // Limitamos entre 0-100
           }
           
-          // Para la traducción síncrona, calculamos basado en páginas
-          if (!translation.totalPages || translation.totalPages === 0) return 50; // Default if pages unknown
-          return Math.round(((translation.completedPages || 0) / translation.totalPages) * 100);
+          // Para la traducción directa, calculamos basado en páginas
+          if (translation.status === 'direct_processing' || translation.status === 'translating') {
+            if (!translation.totalPages || translation.totalPages === 0) return 50; // Default if pages unknown
+            return Math.round(((translation.completedPages || 0) / translation.totalPages) * 100);
+          }
         }
-        return 0; // Should not happen if status is 'in-progress' but not 'translating' or 'batch_processing'
+        return 0; 
       case 'reconstruction':
         // Give some progress indication for reconstruction, maybe 50%?
         // Could be refined if backend provided more granular progress for reconstruction

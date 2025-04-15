@@ -29,6 +29,9 @@ const FormSchema = z.object({
   sourceLanguage: z.string().min(1, { message: "Por favor selecciona un idioma" }),
   targetLanguage: z.string().min(1, { message: "Por favor selecciona un idioma" }),
   translationStyle: z.string().min(1, { message: "Por favor selecciona un estilo" }),
+  processingType: z.enum(["batch", "direct"], { 
+    message: "Por favor selecciona un tipo de procesamiento" 
+  }),
 });
 
 type FormValues = z.infer<typeof FormSchema>;
@@ -70,6 +73,7 @@ const UploadTranslation: FC<UploadTranslationProps> = ({ onTranslationCreated })
       sourceLanguage: "es",
       targetLanguage: "en",
       translationStyle: "standard",
+      processingType: "batch",
     },
   });
   
@@ -144,6 +148,7 @@ const UploadTranslation: FC<UploadTranslationProps> = ({ onTranslationCreated })
     formData.append("sourceLanguage", values.sourceLanguage);
     formData.append("targetLanguage", values.targetLanguage);
     formData.append("translationStyle", values.translationStyle);
+    formData.append("processingType", values.processingType);
     
     uploadMutation.mutate(formData);
   };
@@ -285,7 +290,7 @@ const UploadTranslation: FC<UploadTranslationProps> = ({ onTranslationCreated })
                 />
               </div>
 
-              <div className="sm:col-span-6">
+              <div className="sm:col-span-3">
                 <FormField
                   control={form.control}
                   name="translationStyle"
@@ -298,7 +303,7 @@ const UploadTranslation: FC<UploadTranslationProps> = ({ onTranslationCreated })
                       >
                         <FormControl>
                           <SelectTrigger>
-                            <SelectValue placeholder="Selecciona un estilo" />
+                            <SelectValue placeholder="Seleccionar estilo" />
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
@@ -314,13 +319,50 @@ const UploadTranslation: FC<UploadTranslationProps> = ({ onTranslationCreated })
                   )}
                 />
               </div>
+              <div className="sm:col-span-3">
+                <FormField
+                  control={form.control}
+                  name="processingType"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Tipo de procesamiento</FormLabel>
+                      <Select
+                        onValueChange={field.onChange}
+                        defaultValue={field.value}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Seleccionar tipo de procesamiento" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="batch">
+                            Por lotes (Batch - más rápido para documentos grandes)
+                          </SelectItem>
+                          <SelectItem value="direct">
+                            Directo (actualizaciones en tiempo real)
+                          </SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
             </div>
 
-            <Button 
-              type="submit" 
-              disabled={uploadMutation.isPending || !file}
+            <Button
+              type="submit"
+              disabled={uploadMutation.isPending}
+              className="w-full"
             >
-              {uploadMutation.isPending ? "Subiendo..." : "Iniciar traducción"}
+              {uploadMutation.isPending ? (
+                <>
+                  <span className="mr-2">Procesando...</span>
+                </>
+              ) : (
+                "Crear traducción"
+              )}
             </Button>
           </form>
         </Form>

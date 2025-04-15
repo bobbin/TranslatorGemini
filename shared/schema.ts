@@ -81,11 +81,16 @@ export const TRANSLATION_STATUS = [
   "extracting",
   "translating",
   "batch_processing",  // New status for batch processing
+  "direct_processing", // New status for direct processing
   "reconstructing",
   "completed",
   "failed",
 ] as const;
 export type TranslationStatus = typeof TRANSLATION_STATUS[number];
+
+// Processing types for translations
+export const PROCESSING_TYPES = ["batch", "direct"] as const;
+export type ProcessingType = typeof PROCESSING_TYPES[number];
 
 // Languages supported for translation
 export const LANGUAGES = [
@@ -128,6 +133,7 @@ export const translations = pgTable("translations", {
   completedPages: integer("completed_pages").default(0),
   batchId: text("batch_id"), // ID of OpenAI batch job
   lastChecked: timestamp("last_checked"), // For batch jobs: when the status was last checked
+  processingType: text("processing_type").default("batch"), // Type of processing: 'batch' or 'direct'
 });
 
 // Schema for creating a new translation
@@ -146,6 +152,7 @@ export const insertTranslationSchema = createInsertSchema(translations)
     sourceLanguage: z.enum(LANGUAGES),
     targetLanguage: z.enum(LANGUAGES),
     originalS3Key: z.string().optional(),
+    processingType: z.enum(PROCESSING_TYPES).default("batch"), // Add processing type with default
   });
 
 export type InsertTranslation = z.infer<typeof insertTranslationSchema>;

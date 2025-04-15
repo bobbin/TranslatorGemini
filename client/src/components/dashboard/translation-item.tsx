@@ -25,6 +25,7 @@ export function TranslationItem({ translation, onViewDetails, onRetry }: Transla
       case 'extracting':
       case 'translating':
       case 'batch_processing':
+      case 'direct_processing':
       case 'reconstructing':
         return 'bg-amber-500';
       case 'failed':
@@ -46,6 +47,8 @@ export function TranslationItem({ translation, onViewDetails, onRetry }: Transla
         return 'Translating';
       case 'batch_processing':
         return 'Batch Processing';
+      case 'direct_processing':
+        return 'Direct Processing';
       case 'reconstructing':
         return 'Reconstructing';
       case 'failed':
@@ -62,7 +65,14 @@ export function TranslationItem({ translation, onViewDetails, onRetry }: Transla
     return <FileText className="text-gray-400" />;
   };
 
-  const isInProgress = ['pending', 'extracting', 'translating', 'batch_processing', 'reconstructing'].includes(translation.status);
+  const isInProgress = [
+    'pending', 
+    'extracting', 
+    'translating', 
+    'batch_processing', 
+    'direct_processing', 
+    'reconstructing'
+  ].includes(translation.status);
 
   return (
     <div className="bg-gray-50 p-4 rounded-lg mb-4">

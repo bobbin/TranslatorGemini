@@ -6,7 +6,7 @@ import OpenAI from "openai";
 const TRANSLATION_PROVIDER: "GEMINI" | "OPENAI" = "OPENAI";
 // Select models based on provider
 const GEMINI_MODEL = "gemini-1.5-flash"; // User changed back to flash
-const OPENAI_MODEL = "gpt-4.1-mini"; // Use the latest powerful OpenAI model
+const OPENAI_MODEL = "gpt-4.1"; // Use the latest powerful OpenAI model
 
 // Initialize APIs with keys from environment variables
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY || "";
