@@ -39,19 +39,19 @@ export function TranslationProgressModal({
   const translationQuery = useQuery<Translation>({
     queryKey: ['/api/translations', translationId],
     enabled: isOpen && !!translationId && translationId !== -1,
-    refetchInterval: () => {
-      if (!translationQuery.data) return pollingInterval;
+    refetchInterval: (data: any) => {
+      if (!data) return pollingInterval;
       
       // Convertir explícitamente el dato a Translation para evitar problemas de tipado
-      const data = translationQuery.data as Translation;
+      const translationData = data as Translation;
       
       // Detener polling cuando la traducción está completada o falló
-      if (data.status === 'completed' || data.status === 'failed') {
+      if (translationData.status === 'completed' || translationData.status === 'failed') {
         return false;
       }
       
       // Para procesamiento por lotes, reducimos la frecuencia de polling
-      if (data.status === 'batch_processing') {
+      if (translationData.status === 'batch_processing') {
         return 30000; // Consultar cada 30 segundos
       }
       
