@@ -80,6 +80,7 @@ export const TRANSLATION_STATUS = [
   "pending",
   "extracting",
   "translating",
+  "batch_processing",  // New status for batch processing
   "reconstructing",
   "completed",
   "failed",
@@ -125,6 +126,8 @@ export const translations = pgTable("translations", {
   metadata: json("metadata"),
   totalPages: integer("total_pages"),
   completedPages: integer("completed_pages").default(0),
+  batchId: text("batch_id"), // ID of OpenAI batch job
+  lastChecked: timestamp("last_checked"), // For batch jobs: when the status was last checked
 });
 
 // Schema for creating a new translation
