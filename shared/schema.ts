@@ -162,6 +162,8 @@ export const updateTranslationSchema = createInsertSchema(translations)
     error: true,
     completedPages: true,
     totalPages: true,
+    batchId: true,     // Added batch ID
+    lastChecked: true, // Added last checked timestamp
   })
   .partial();
 

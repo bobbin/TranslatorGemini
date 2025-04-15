@@ -96,6 +96,37 @@ export async function deleteFileFromS3(s3Key: string): Promise<void> {
 }
 
 /**
+ * Obtiene un archivo desde S3 como Buffer
+ * @param s3Key Clave S3 del archivo
+ * @returns Buffer con el contenido del archivo
+ */
+export async function getFileFromS3(s3Key: string): Promise<Buffer> {
+  if (!s3Key) {
+    throw new Error('S3 key is required');
+  }
+
+  const params = {
+    Bucket: bucketName,
+    Key: s3Key,
+  };
+
+  try {
+    const response = await s3Client.send(new GetObjectCommand(params));
+    
+    // Convertir el stream en un buffer
+    const chunks: Uint8Array[] = [];
+    for await (const chunk of response.Body as any) {
+      chunks.push(chunk);
+    }
+    
+    return Buffer.concat(chunks);
+  } catch (error) {
+    console.error("Error fetching file from S3:", error);
+    throw new Error(`Failed to fetch file from S3: ${error instanceof Error ? error.message : String(error)}`);
+  }
+}
+
+/**
  * Verifica si las credenciales de S3 están configuradas correctamente
  */
 export async function verifyS3Credentials(): Promise<boolean> {
