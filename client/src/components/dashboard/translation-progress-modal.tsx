@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Translation } from "@shared/schema";
+import { Translation, TranslationStatus } from "@shared/schema";
 import {
   Dialog,
   DialogContent,
@@ -31,33 +31,28 @@ export function TranslationProgressModal({
   const translationQuery = useQuery<Translation>({
     queryKey: ['/api/translations', translationId],
     enabled: isOpen && !!translationId && translationId !== -1,
-    refetchInterval: (query) => {
-      // Do a safe check to see if we have data first
-      if (!query || typeof query !== 'object') return pollingInterval;
+    refetchInterval: () => {
+      if (!translationQuery.data) return pollingInterval;
       
-      try {
-        // Correctamente obtener el resultado de la consulta
-        const data = query.data;
-        if (!data) return pollingInterval;
-        
-        // Stop polling when translation is completed or failed
-        if (data.status === 'completed' || data.status === 'failed') {
-          return false;
-        }
-        // Para procesamiento por lotes, reducimos la frecuencia de polling ya que las verificaciones
-        // en el servidor ocurren cada 2 minutos
-        if (data.status === 'batch_processing') {
-          return 30000; // Check every 30 seconds
-        }
-        return pollingInterval;
-      } catch (error) {
-        console.error('Error checking translation status:', error);
-        return pollingInterval;
+      // Convertir explícitamente el dato a Translation para evitar problemas de tipado
+      const data = translationQuery.data as Translation;
+      
+      // Detener polling cuando la traducción está completada o falló
+      if (data.status === 'completed' || data.status === 'failed') {
+        return false;
       }
+      
+      // Para procesamiento por lotes, reducimos la frecuencia de polling
+      if (data.status === 'batch_processing') {
+        return 30000; // Consultar cada 30 segundos
+      }
+      
+      return pollingInterval;
     },
   });
   
-  const translation = translationQuery.data;
+  // Aplicar un cast explícito para evitar errores de tipado
+  const translation = translationQuery.data as Translation | undefined;
   const isLoading = translationQuery.isLoading;
   
   // Define la interfaz para el estado del batch

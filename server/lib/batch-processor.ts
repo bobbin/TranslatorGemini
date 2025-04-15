@@ -78,8 +78,12 @@ async function checkBatchProgress(translationId: number): Promise<void> {
     console.log(`[Batch Processor] Batch ${translation.batchId} status: ${batchState.batchStatus}`);
     
     if (batchState.batchStatus === 'completed') {
+      console.log(`[Batch Processor] Batch ${translation.batchId} completed! Processing results...`);
+      
       // El lote se ha completado, procesar los resultados
       await processBatchResults(translation.id, translation.batchId);
+      console.log(`[Batch Processor] Successfully processed batch results for translation ${translationId}`);
+      
       stopBatchProcessing(translationId);
     } else if (batchState.batchStatus === 'failed') {
       // El lote ha fallado, actualizar la traducción
@@ -90,9 +94,23 @@ async function checkBatchProgress(translationId: number): Promise<void> {
       stopBatchProcessing(translationId);
     } else {
       // El lote sigue en progreso, programar la siguiente verificación
-      // Calcular el progreso basado en la información del lote (si está disponible)
-      // Por ahora simplemente usamos un valor fijo entre 40 y 70
-      const progress = 40 + Math.floor(Math.random() * 30); // Temporal, mejorar con información real del lote
+      // Calcular el progreso basado en la información del lote
+      let progress = 40; // Base progress cuando comienza el procesamiento por lotes
+      
+      // Si tenemos información de progreso del lote, usarla para calcular un valor más preciso
+      if (typeof batchState.progress === 'number') {
+        // Escalar el progreso entre 40-70% durante la fase de procesamiento por lotes
+        progress = 40 + Math.floor(batchState.progress * 0.3);
+      } else {
+        // Si no hay progreso específico, usar el tiempo transcurrido como estimación
+        const currentTime = new Date();
+        const startTime = translation.lastChecked || currentTime;
+        const minutesElapsed = Math.max(0, (currentTime.getTime() - startTime.getTime()) / 60000);
+        
+        // Estimamos que el proceso toma aproximadamente 30 minutos, por lo que aumentamos 1% cada minuto
+        const timeBasedProgress = Math.min(30, minutesElapsed);
+        progress = 40 + Math.floor(timeBasedProgress);
+      }
       
       await storage.updateTranslation(translationId, {
         progress
@@ -152,6 +170,11 @@ async function processBatchResults(translationId: number, batchId: string): Prom
     const translatedChapters = getBatchResults(batchId);
     if (!translatedChapters) {
       throw new Error(`No batch results found for batch ${batchId}`);
+    }
+    
+    // Verificación adicional para asegurar que tenemos suficientes capítulos
+    if (translatedChapters.length === 0) {
+      throw new Error(`Batch ${batchId} returned 0 translated chapters`);
     }
     
     console.log(`[Batch Processor] Retrieved ${translatedChapters.length} translated chapters for translation ${translationId}`);
