@@ -16,7 +16,7 @@ import {
   deleteFileFromS3,
   verifyS3Credentials 
 } from './lib/s3-service';
-import { createBatchTranslation, ChapterForTranslation } from './lib/openai-batch';
+import { createBatchTranslation, ChapterForTranslation, getBatchState } from './lib/openai-batch';
 import { startBatchProcessing } from './lib/batch-processor';
 
 // Set up multer for file upload handling
@@ -227,9 +227,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
             result.data.customPrompt || 'standard'
           );
           
+          // Registrar el ID del lote proporcionado por OpenAI
           console.log(`[Batch] Batch translation request created with ID: ${batchState.batchId}`);
           
-          // Iniciar el procesamiento por lotes y actualizar la traducción
+          // Iniciar el procesamiento por lotes usando el ID de OpenAI
           startBatchProcessing(translation.id, batchState.batchId);
           
           // Ya no necesitamos reconstruir el EPUB ahora, el procesador por lotes lo hará cuando termine
@@ -431,15 +432,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
       
-      res.json({
+      // Proporcionar información básica del estado
+      const response = {
         id: translation.id,
         status: translation.status,
         progress: translation.progress,
         lastChecked: translation.lastChecked,
         batchId: translation.batchId,
         completedPages: translation.completedPages,
-        totalPages: translation.totalPages
-      });
+        totalPages: translation.totalPages,
+        error: translation.error || null
+      };
+      
+      // Intentar obtener información adicional del estado del lote de OpenAI si está disponible
+      if (translation.batchId) {
+        try {
+          const batchState = getBatchState(translation.batchId);
+          if (batchState) {
+            // Añadir información detallada del lote
+            Object.assign(response, {
+              batchStatus: batchState.batchStatus,
+              batchProgress: batchState.batchStatus === 'completed' ? 100 : 
+                            (batchState.batchStatus === 'failed' ? 0 : 50) // Valor estimado para in_progress
+            });
+            
+            // Añadir detalles de error si existen
+            if (batchState.error) {
+              response.error = batchState.error;
+            }
+          }
+        } catch (batchError) {
+          console.warn(`Error getting batch state for ID ${translation.batchId}:`, batchError);
+          // No fallamos la solicitud si no podemos obtener el estado del lote,
+          // simplemente continuamos con la información básica
+        }
+      }
+      
+      res.json(response);
     } catch (error: any) {
       console.error('Batch status check error:', error);
       res.status(500).json({ message: error.message || 'Failed to check batch status' });

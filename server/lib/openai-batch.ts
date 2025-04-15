@@ -300,8 +300,9 @@ export async function checkBatchStatus(batchId: string): Promise<BatchTranslatio
       }
     }
     
-    // Update the batch translations map
-    batchTranslations.set(batchId, batchState);
+    // Update the batch translations map (siempre con el ID de OpenAI)
+    batchTranslations.set(batchState.batchId, batchState);
+    console.log(`[Batch API] Updated batch state for ${batchState.batchId} to status: ${batchState.batchStatus}`);
     
     return batchState;
   } catch (error: any) {
@@ -312,7 +313,12 @@ export async function checkBatchStatus(batchId: string): Promise<BatchTranslatio
     if (batchState) {
       batchState.batchStatus = 'failed';
       batchState.error = `Error checking batch status: ${error.message}`;
-      batchTranslations.set(batchId, batchState);
+      // Siempre guardar con el ID de OpenAI
+      batchTranslations.set(batchState.batchId, batchState);
+      console.log(`[Batch API] Updated batch state for ${batchState.batchId} to 'failed' due to error`);
+    } else {
+      // Si no encontramos el estado del lote, podría ser porque el ID de OpenAI no coincide con el que estamos usando
+      console.error(`[Batch API] Batch state not found for ID: ${batchId}. This might be a mismatch between OpenAI batch ID and stored ID.`);
     }
     
     throw new Error(`Failed to check batch translation status: ${error.message}`);

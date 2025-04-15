@@ -36,15 +36,17 @@ export function TranslationProgressModal({
       if (!query || typeof query !== 'object') return pollingInterval;
       
       try {
-        const translationData = query as Translation;
+        // Correctamente obtener el resultado de la consulta
+        const data = query.data;
+        if (!data) return pollingInterval;
         
         // Stop polling when translation is completed or failed
-        if (translationData.status === 'completed' || translationData.status === 'failed') {
+        if (data.status === 'completed' || data.status === 'failed') {
           return false;
         }
         // Para procesamiento por lotes, reducimos la frecuencia de polling ya que las verificaciones
         // en el servidor ocurren cada 2 minutos
-        if (translationData.status === 'batch_processing') {
+        if (data.status === 'batch_processing') {
           return 30000; // Check every 30 seconds
         }
         return pollingInterval;
