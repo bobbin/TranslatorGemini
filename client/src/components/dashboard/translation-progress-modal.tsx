@@ -328,23 +328,73 @@ export function TranslationProgressModal({
               <Alert className="mt-4">
                 <Clock className="h-4 w-4" />
                 <AlertDescription>
-                  This translation is using batch processing, which is more cost-effective but takes longer.
-                  The system checks for completion every 2 minutes. You can close this window and come back later.
-                  {translation.lastChecked && (
-                    <div className="mt-1 text-xs text-gray-500">
-                      Last checked: {new Date(translation.lastChecked).toLocaleString()}
+                  <div className="text-sm">
+                    This translation is using <span className="font-medium">batch processing with OpenAI</span>, which is more cost-effective but takes longer.
+                    The system checks for completion every 2 minutes.
+                  </div>
+                  
+                  <div className="mt-2 flex flex-col space-y-1">
+                    <div className="flex justify-between text-xs">
+                      <span className="text-gray-600">OpenAI Batch ID:</span>
+                      <span className="font-mono text-gray-800">{translation.batchId || 'Not assigned yet'}</span>
                     </div>
-                  )}
+                    
+                    {translation.metadata && (
+                      <div className="flex justify-between text-xs">
+                        <span className="text-gray-600">Retry Count:</span>
+                        <span className="font-mono text-gray-800">{(translation.metadata as any).retryCount || 0}</span>
+                      </div>
+                    )}
+                    
+                    {translation.lastChecked && (
+                      <div className="flex justify-between text-xs">
+                        <span className="text-gray-600">Last Check:</span>
+                        <span className="font-mono text-gray-800">
+                          {new Date(translation.lastChecked).toLocaleString()}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                  
                   {batchStatus && (
-                    <div className="mt-2 text-sm">
-                      <span className="font-medium">Batch Status:</span> {batchStatus.status}
+                    <div className="mt-3 p-2 bg-gray-50 rounded-md border border-gray-200">
+                      <div className="text-sm font-medium">OpenAI Batch Status: 
+                        <span className={`ml-1 ${
+                          batchStatus.status === 'completed' ? 'text-green-600' : 
+                          batchStatus.status === 'failed' ? 'text-red-600' : 
+                          'text-blue-600'
+                        }`}>
+                          {batchStatus.status}
+                        </span>
+                      </div>
+                      
+                      {typeof batchStatus.progress === 'number' && (
+                        <div className="mt-1">
+                          <div className="flex justify-between text-xs mb-1">
+                            <span>Detailed progress:</span>
+                            <span className="font-medium">{batchStatus.progress}%</span>
+                          </div>
+                          <Progress value={batchStatus.progress} className="h-1.5" />
+                        </div>
+                      )}
+                      
                       {batchStatus.eta && (
-                        <div className="text-xs text-gray-500">
+                        <div className="mt-1 text-xs text-gray-600">
                           Estimated completion: {new Date(batchStatus.eta).toLocaleString()}
+                        </div>
+                      )}
+                      
+                      {batchStatus.error && (
+                        <div className="mt-1 text-xs text-red-600 bg-red-50 p-1 rounded">
+                          Error: {batchStatus.error}
                         </div>
                       )}
                     </div>
                   )}
+                  
+                  <div className="mt-2 text-xs text-gray-500 italic">
+                    You can close this window and check back later. Your translation will continue processing.
+                  </div>
                 </AlertDescription>
               </Alert>
             )}
